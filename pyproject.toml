@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "forest-custody-memory"
+version = "0.1.0"
+description = "Append-only custody-first memory for AI systems — similarity can retrieve, similarity cannot promote."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+authors = [{ name = "Forest contributors" }]
+keywords = ["ai", "memory", "sqlite", "custody", "append-only", "provenance"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Database",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = []
+
+[project.optional-dependencies]
+test = ["pytest>=8.0"]
+dev = ["pytest>=8.0", "build"]
+
+[project.urls]
+Documentation = "https://github.com/schmerbert/The-Forest/blob/main/FOREST.md"
+Repository = "https://github.com/schmerbert/The-Forest"
+Issues = "https://github.com/schmerbert/The-Forest/issues"
+Changelog = "https://github.com/schmerbert/The-Forest/blob/main/CHANGELOG.md"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+forest_memory = ["schema.sql"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
