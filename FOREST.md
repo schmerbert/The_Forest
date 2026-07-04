@@ -26,7 +26,7 @@ Retrieval may find text. Retrieval may not promote text.
 
 That is the Forest.
 
-The enforced artifact is [`schema.sql`](schema.sql). This document is the constitution behind it.
+The enforced artifact is [`schema.sql`](schema.sql). This document is the constitution behind it — the reference Forest schema for adopters.
 
 ---
 
@@ -262,6 +262,8 @@ If ground also lives outside the store:
 
 The reference wrapper provides `drift.check_file_drift` for this pattern.
 
+**v0.1 limitation:** `check_file_drift` compares the **SHA-256 of the entire file** to one adoption record's `body_hash`. That works when the adopted body is the whole file (a single canon document, a full manuscript export). It does **not** track individual sections inside a larger Markdown file. If one paragraph was adopted but the file contains other editable sections, drift detection will false-alarm or miss partial edits. For multi-section files, adopt whole-file snapshots in v0.1, or treat anchored spans / byte ranges as future work.
+
 Every adopted ground statement should exist twice:
 
 1. in the readable file
@@ -318,15 +320,13 @@ A usable Forest should refuse:
 ## 12. Adopting Forest
 
 1. Decide the authority-holder.
-2. Copy [`schema.sql`](schema.sql).
-3. Write the insert wrapper.
+2. Copy [`schema.sql`](schema.sql) — **and write an insert wrapper**. SQL alone does not enforce ancestry, ceremonies, or retrieval logging.
+3. Wire signatures, ancestry, adoption, supersession, and sealing in your wrapper.
 4. Insert conversation pairs in real time.
-5. Require signatures.
-6. Require ancestry.
-7. Add adoption and supersession ceremonies.
-8. Add sealing before anyone needs it.
-9. Walk ancestry manually until boring.
-10. Add embeddings, wander, or agents only when the core reveals friction.
+5. Add a promotion gate (praise ≠ adoption).
+6. Add sealing before anyone needs it.
+7. Walk ancestry manually until boring.
+8. Add embeddings, wander, or agents only when the core reveals friction.
 
 Do not start with embeddings, elaborate edge vocabularies, tuning dashboards, or memory personalities.
 

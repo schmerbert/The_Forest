@@ -2,6 +2,14 @@
 
 All notable changes to the Forest constitution and reference wrapper.
 
+## [Unreleased]
+
+### Docs
+
+- README: authority lifecycle diagram, SQL-not-enough warning, softer public phrasing
+- FOREST.md: document whole-file drift limitation (§9); tighten adoption checklist
+- `drift.check_file_drift` docstring: whole-file v0.1 scope
+
 ## [0.1.0] — 2026-07-03
 
 ### Constitution (`schema.sql`)

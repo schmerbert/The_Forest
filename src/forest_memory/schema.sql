@@ -1,5 +1,5 @@
 -- =============================================================================
--- Forest constitution — canonical schema (v0.1)
+-- Forest constitution — reference schema (v0.1)
 -- =============================================================================
 --
 -- This file is the enforced law. Read FOREST.md for rationale.

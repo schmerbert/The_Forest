@@ -8,7 +8,7 @@ Forest is a small **constitution** (`FOREST.md`) plus a **SQLite schema** (`sche
 
 > **Similarity can retrieve. Similarity cannot promote.**
 
-This repo is the canonical spec. Copy the schema into your project, implement the ceremonies in your app, and optionally use the Python reference wrapper to see how it works.
+This repo is the **home for the Forest spec** — the reference schema and constitution. Copy the schema into your project, implement the ceremonies in your app, and optionally use the Python reference wrapper to see how it works.
 
 ---
 
@@ -20,6 +20,8 @@ This repo is the canonical spec. Copy the schema into your project, implement th
 git clone https://github.com/schmerbert/The_Forest.git
 cp The_Forest/schema.sql your-project/woods/schema.sql
 ```
+
+> **Do not copy `schema.sql` without an insert wrapper.** SQL defines the container; Forest rules require application-layer ceremony: signatures, ancestry, adoption, sealing, promotion gates, and retrieval logging. See [`FOREST.md`](FOREST.md) and the reference wrapper in `src/forest_memory/`.
 
 Then read [`FOREST.md`](FOREST.md) and wire adoption/supersession/sealing in your application.
 
@@ -66,6 +68,12 @@ Every piece of stored text has:
 
 Search can **find** text. Only a recorded ceremony can **promote** it to ground truth.
 
+```text
+session_pair ──► inference / draft ──► adoption_record ──► canon
+                        │
+                        └──► refused unless authority-holder adopts
+```
+
 ```python
 from forest_memory import ForestStore, adopt_to_ground
 
@@ -104,7 +112,7 @@ Forest only works if it refuses the usual shortcuts — unsigned inserts, praise
 |-------|-------------|
 | Constitutional | `schema.sql` + `ForestStore` |
 | Ceremonial | `adopt_to_ground` (your app must call a gate like this) |
-| Drift | `check_file_drift` when ground also lives in files |
+| Drift | `check_file_drift` when ground also lives in files (whole-file in v0.1; see FOREST.md §9) |
 
 17 tests. All should pass before you trust a fork.
 

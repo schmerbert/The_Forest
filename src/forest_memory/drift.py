@@ -30,7 +30,13 @@ def check_file_drift(
     store: ForestStore,
     adoption_entry_id: int,
 ) -> list[dict]:
-    """Return warnings if a readable file no longer matches the adoption trail."""
+    """Return warnings if a readable file no longer matches the adoption trail.
+
+    v0.1 compares the hash of the **entire file** to the adoption record's
+    ``body_hash``. Use when the adopted body is the whole file. Multi-section
+    Markdown (one adopted paragraph in a larger doc) is not supported yet —
+    see FOREST.md §9.
+    """
     warnings: list[dict] = []
     if not file_path.exists():
         warnings.append({
