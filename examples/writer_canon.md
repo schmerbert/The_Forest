@@ -1,5 +1,7 @@
 # Example: writer canon
 
+How a fiction-writing tool might use Forest. The authority-holder is the author.
+
 Author says:
 
 > Her brother's name is Elias.
@@ -34,4 +36,4 @@ origin: derived_from -> canon_entry
 body: Maybe Elias betrayed her.
 ```
 
-That proposal can retrieve. It cannot become canon until adoption.
+That proposal can retrieve. It cannot become canon until the author adopts it through a recorded ceremony.

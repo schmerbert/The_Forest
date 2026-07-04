@@ -1,45 +1,33 @@
 # Forest
 
-**Custody-first append-only memory for AI systems.**
+**A spec for AI memory that tracks where text came from — not just what sounds similar.**
 
-Most memory stacks store text and retrieve by similarity. That works until you need to know whether a retrieved sentence was **authored**, **guessed**, **superseded**, **rejected**, or merely **adjacent**.
+RAG stores chunks and retrieves by cosine similarity. That breaks down when you need to know whether a sentence was **said by the user**, **guessed by the model**, **superseded**, **rejected**, or merely **related**.
 
-Forest is the missing layer: a small constitution + SQLite schema that stores **custody with the text**.
+Forest is a small **constitution** (`FOREST.md`) plus a **SQLite schema** (`schema.sql`) that stores custody with the text.
 
 > **Similarity can retrieve. Similarity cannot promote.**
 
-This repository is the **canonical spec**. Implementations (writer marbles, research notebooks, agent hosts) give it a face. The face needs Forest to stay honest; Forest does not need the face to work.
+This repo is the canonical spec. Copy the schema into your project, implement the ceremonies in your app, and optionally use the Python reference wrapper to see how it works.
 
 ---
 
-## What you get
+## Start here
 
-| Artifact | Role |
-|----------|------|
-| [`FOREST.md`](FOREST.md) | The constitution — read this first |
-| [`schema.sql`](schema.sql) | Enforced rules: CHECK constraints, append-only trigger, sealed FTS exclusion |
-| [`src/forest_memory/`](src/forest_memory/) | Minimal Python reference (not a framework) |
-| [`examples/`](examples/) | Writer, research, and codebase adoption stories |
-| [`tests/`](tests/) | Hostile tests — the law, executable |
-
-**v0.1 ships:** insert discipline, adoption, supersession, sealing, search + retrieval log, ceremony gates, file drift checks.
-
-**v0.1 does not ship:** embeddings, wander, mycelium machinery, traverse automation. Those are cables — add them when the boring core hurts.
-
----
-
-## Quick start
-
-### Copy the constitution (most adopters)
+**Most adopters** — copy the spec, no install:
 
 ```bash
-cp schema.sql your-project/woods/schema.sql
-# Read FOREST.md. Implement ceremonies in your app.
+git clone https://github.com/schmerbert/The_Forest.git
+cp The_Forest/schema.sql your-project/woods/schema.sql
 ```
 
-### Run the reference wrapper
+Then read [`FOREST.md`](FOREST.md) and wire adoption/supersession/sealing in your application.
+
+**Developers** — run the reference wrapper and hostile tests:
 
 ```bash
+git clone https://github.com/schmerbert/The_Forest.git
+cd The_Forest
 python -m venv .venv
 # Windows: .venv\Scripts\activate
 # Unix:    source .venv/bin/activate
@@ -47,7 +35,36 @@ pip install -e ".[test]"
 pytest -q
 ```
 
-**15 tests green** — constitutional refusals, ceremony refusals, drift detection.
+---
+
+## What's in the repo
+
+| Artifact | What it is |
+|----------|------------|
+| [`FOREST.md`](FOREST.md) | The constitution — **read this first** |
+| [`schema.sql`](schema.sql) | Enforced rules: CHECK constraints, append-only trigger, sealed-entry exclusion |
+| [`src/forest_memory/`](src/forest_memory/) | Minimal Python reference (not a framework) |
+| [`examples/`](examples/) | Writer, research, and codebase adoption stories |
+| [`tests/`](tests/) | Hostile tests — refusals the spec requires, run as code |
+
+**v0.1 includes:** insert discipline, adoption, supersession, sealing, search + retrieval log, ceremony gates, file drift checks.
+
+**v0.1 does not include:** embeddings, autonomous retrieval, or agent orchestration. Add those only when the core schema starts to hurt.
+
+---
+
+## How it works (60 seconds)
+
+Every piece of stored text has:
+
+| Mechanism | Job |
+|-----------|-----|
+| **Bucket** | What kind of text this is (canon, draft, inference, hearsay, …) |
+| **Signature** | Who produced it (author, model, source, …) |
+| **Ancestry** | Where it came from (origin edges back to a root) |
+| **Ceremony** | Explicit authority acts — adoption, supersession, sealing |
+
+Search can **find** text. Only a recorded ceremony can **promote** it to ground truth.
 
 ```python
 from forest_memory import ForestStore, adopt_to_ground
@@ -75,75 +92,30 @@ with ForestStore("woods.db") as store:
     )
 ```
 
-**Promotion ceremony is not automatic.** Route adoption through `adopt_to_ground` (or your own gate). `ForestStore.adopt()` is a low-level constitutional write that skips ceremonial refusals — do not call it from production promotion paths.
-
-**Search is not current ground.** `search()` may return superseded history. Use the `current_ground` view when you need authoritative truth.
-
----
-
-## The four jobs
-
-| Mechanism | Job |
-|-----------|-----|
-| **Buckets** | Scope what retrieval may return |
-| **Search** | Find entry points (FTS + `retrieval_log`) |
-| **Ancestry** | Certify where an entry came from |
-| **Ceremony** | Record authority acts — adoption, supersession, sealing |
-
-Chunk → embed → cosine → stuff context discards the first three and fakes the fourth. Forest refuses that.
+If you use the Python wrapper: route promotion through `adopt_to_ground` (not `ForestStore.adopt()` directly), and use the `current_ground` view for authoritative truth — `search()` may still return superseded history.
 
 ---
 
 ## Hostile tests
 
-Forest is useful only if it refuses the usual laundering paths. See [`tests/HOSTILE_CASES.md`](tests/HOSTILE_CASES.md).
+Forest only works if it refuses the usual shortcuts — unsigned inserts, praise mistaken for adoption, sealed text leaking back, silent file edits after adoption. See [`tests/HOSTILE_CASES.md`](tests/HOSTILE_CASES.md).
 
 | Layer | Enforced by |
 |-------|-------------|
 | Constitutional | `schema.sql` + `ForestStore` |
-| Ceremonial | `ceremony.adopt_to_ground` (your app must call a gate like this) |
-| Drift | `drift.check_file_drift` when ground also lives in files |
+| Ceremonial | `adopt_to_ground` (your app must call a gate like this) |
+| Drift | `check_file_drift` when ground also lives in files |
+
+17 tests. All should pass before you trust a fork.
 
 ---
 
-## Reference implementations
+## Downstream projects
 
-- **[The Inn (The Dog-Ear)](https://github.com/schmerbert/TheInn)** — writer's marble; `inn/forest.py` tracks this schema
-- Copy `schema.sql` anywhere else — keep the constitution identical, build your own ceremonies
+- **[The Inn (The Dog-Ear)](https://github.com/schmerbert/The_Inn)** — a writer tool that implements this schema
+- Any other project: copy `schema.sql`, keep it identical, build your own ceremonies
 
-When the schema changes here, downstream repos should sync `woods/schema.sql` from this file.
-
----
-
-## Releases
-
-Tagged releases are published to [GitHub Releases](https://github.com/schmerbert/The-Forest/releases) and [PyPI](https://pypi.org/project/forest-custody-memory/) as `forest-custody-memory`.
-
-```bash
-pip install forest-custody-memory
-```
-
-Maintainers follow [`RELEASING.md`](RELEASING.md). Contributors see [`CONTRIBUTING.md`](CONTRIBUTING.md).
-
----
-
-## Project layout
-
-```text
-FOREST.md                      Constitution
-schema.sql                     Canonical schema (human-facing)
-src/forest_memory/
-  schema.sql                   Packaged copy (must match root)
-  core.py                      ForestStore — insert, adopt, supersede, seal, search
-  ceremony.py                  Promotion gates — praise ≠ adoption
-  drift.py                     File vs adoption trail
-examples/                      Adoption stories
-tests/
-  HOSTILE_CASES.md             Spec for the hostile suite
-  test_constitutional.py       Schema + store refusals
-  test_ceremony.py             Authority promotion refusals
-  test_drift.py                Silent file edit detection
-```
+When this schema changes, downstream repos should sync from `schema.sql` here.
 
 ---
 
@@ -153,4 +125,4 @@ MIT — see [`LICENSE`](LICENSE). The spec is meant to be copied.
 
 ---
 
-*Schema yes, machinery later. Columns are cheap at birth and painful to retrofit. Build the refusals first; beauty is allowed after the floor holds weight.*
+*Build the refusals first. Beauty is allowed after the floor holds weight.*

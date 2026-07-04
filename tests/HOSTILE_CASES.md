@@ -1,25 +1,29 @@
 # Hostile cases
 
-Forest is useful only if it refuses the common laundering paths.
+Forest is useful only if it refuses the usual shortcuts. Each case names **who enforces it** in this repository.
 
-Each case names **who enforces it** in this repository:
-
-- **Constitutional** — `schema.sql` and/or `ForestStore` refuse at write or retrieve time
-- **Ceremonial** — your application must call a promotion gate (`ceremony.adopt_to_ground` in the reference wrapper)
-- **Drift** — external files compared to adoption receipts (`drift.check_file_drift`)
+| Layer | Enforced by |
+|-------|-------------|
+| **Constitutional** | `schema.sql` and/or `ForestStore` at write or retrieve time |
+| **Ceremonial** | Your promotion gate (`adopt_to_ground` in the reference wrapper) |
+| **Drift** | `check_file_drift` when ground also lives in files |
 
 | # | Case | Layer | Test |
 |---|------|-------|------|
 | 1 | Unsigned insert | Constitutional | `test_constitutional.py` |
-| 2 | Orphan non-root insert | Constitutional | `test_constitutional.py` |
+| 2 | Orphan non-root insert | Constitutional (wrapper) | `test_constitutional.py` |
 | 3 | Praise is not adoption | Ceremonial | `test_ceremony.py` |
 | 4 | Paraphrase is not author ground | Ceremonial | `test_ceremony.py` |
-| 5 | Superseded fact retrieves as current truth | Constitutional | `test_constitutional.py` (`current_ground` view) |
+| 5 | Superseded fact treated as current truth | Constitutional (view) | `test_constitutional.py` |
 | 6 | Sealed entry leaks | Constitutional | `test_constitutional.py` |
 | 7 | Wild wood launders into ground | Ceremonial + views | `test_ceremony.py` |
-| 8 | Unlogged retrieval | Constitutional | `test_constitutional.py` (`retrieval_log`) |
+| 8 | Unlogged retrieval | Constitutional (wrapper) | `test_constitutional.py` |
+| — | Silent body rewrite | Constitutional (trigger) | `test_constitutional.py` |
+| — | Silent entry delete | Constitutional (trigger) | `test_constitutional.py` |
+| — | Silent edge delete | Constitutional (trigger) | `test_constitutional.py` |
 | — | Silent file edit after adoption | Drift | `test_drift.py` |
-| — | Silent body rewrite | Constitutional | `test_constitutional.py` (DB trigger) |
+
+Cases 2 and 8 are enforced by `ForestStore` in the reference wrapper, not by SQL alone. Your application must enforce the same rules.
 
 ---
 
@@ -33,7 +37,7 @@ Attempt to insert text without a signature.
 
 Attempt to insert a non-root entry with no origin edge.
 
-**Expected:** refused.
+**Expected:** refused. Only `session_pair` may be root.
 
 ## 3. Praise is not adoption
 
@@ -47,15 +51,15 @@ The model paraphrases an author statement and attempts to store the paraphrase a
 
 **Expected:** refused. Store the paraphrase as model synthesis/inference, or store exact author text.
 
-## 5. Superseded fact retrieves as current truth
+## 5. Superseded fact treated as current truth
 
-Old canon says spring. New canon supersedes it with winter. Query retrieves both.
+Old canon says spring. New canon supersedes it with winter.
 
-**Expected:** traversal may show history, but `current_ground` returns winter only.
+**Expected:** keyword search may return both (history). `current_ground` returns winter only. Do not treat search hits as authoritative truth.
 
 ## 6. Sealed entry leaks
 
-A sealed entry appears through FTS, traverse, wander, summary, question-fruiting, or derived retrieval.
+A sealed entry appears through FTS, traversal, summary, or derived retrieval.
 
 **Expected:** failure. Sealed means silence.
 
@@ -75,7 +79,13 @@ Search runs without recording scope.
 
 An existing entry body is updated in place.
 
-**Expected:** refused. Use supersession.
+**Expected:** refused by DB trigger. Use supersession.
+
+## Silent delete
+
+An entry or edge is removed from the store.
+
+**Expected:** refused by DB trigger. Use supersession or sealing — not deletion.
 
 ## Silent file edit
 

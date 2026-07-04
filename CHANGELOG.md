@@ -11,7 +11,7 @@ All notable changes to the Forest constitution and reference wrapper.
 - `meta_json` on entries
 - Reworked `edges`: `id` PK, `created_at`, `UNIQUE(from_id, to_id, kind)`
 - `retrieval_log` table
-- `prevent_body_rewrite` trigger — append-only as DB guarantee
+- `prevent_body_rewrite`, `prevent_entry_delete`, and `prevent_edge_delete` triggers — append-only as DB guarantee
 - FTS triggers exclude `sealed` at index time
 - `retrievable_entries` and `current_ground` views
 - Btree indexes on bucket, forest, edge endpoints
@@ -22,7 +22,7 @@ All notable changes to the Forest constitution and reference wrapper.
 - `ceremony.adopt_to_ground` — praise ≠ adoption, verbatim author prose
 - `drift.check_file_drift` — file vs adoption `body_hash`
 - Packaged `schema.sql` for `pip install`
-- 15 hostile tests across constitutional, ceremony, and drift layers
+- 17 hostile tests across constitutional, ceremony, and drift layers
 
 ### Docs
 
@@ -33,6 +33,6 @@ All notable changes to the Forest constitution and reference wrapper.
 ### Release infrastructure
 
 - GitHub Actions CI (Python 3.10–3.13, Ubuntu + Windows)
-- Tag-triggered release workflow (GitHub Release + PyPI via trusted publishing)
+- Tag-triggered release workflow (GitHub Release with auto-generated notes)
 - `RELEASING.md`, `CONTRIBUTING.md`, `SECURITY.md`
 - `ForestStore.close()` and context-manager support

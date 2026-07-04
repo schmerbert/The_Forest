@@ -4,7 +4,7 @@
 
 If you believe you have found a security issue in the Forest constitution or reference wrapper, please report it privately:
 
-- Open a [GitHub Security Advisory](https://github.com/schmerbert/The-Forest/security/advisories/new) (preferred), or
+- Open a [GitHub Security Advisory](https://github.com/schmerbert/The_Forest/security/advisories/new) (preferred), or
 - Email **forrestwestphal@gmail.com** with a description and reproduction steps
 
 Do not open a public issue for undisclosed vulnerabilities.

@@ -30,10 +30,10 @@ test = ["pytest>=8.0"]
 dev = ["pytest>=8.0", "build"]
 
 [project.urls]
-Documentation = "https://github.com/schmerbert/The-Forest/blob/main/FOREST.md"
-Repository = "https://github.com/schmerbert/The-Forest"
-Issues = "https://github.com/schmerbert/The-Forest/issues"
-Changelog = "https://github.com/schmerbert/The-Forest/blob/main/CHANGELOG.md"
+Documentation = "https://github.com/schmerbert/The_Forest/blob/main/FOREST.md"
+Repository = "https://github.com/schmerbert/The_Forest"
+Issues = "https://github.com/schmerbert/The_Forest/issues"
+Changelog = "https://github.com/schmerbert/The_Forest/blob/main/CHANGELOG.md"
 
 [tool.setuptools.packages.find]
 where = ["src"]

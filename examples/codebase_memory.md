@@ -1,6 +1,8 @@
 # Example: codebase memory
 
-A code agent finds an old architectural decision record:
+How a code agent might use Forest. The authority-holder is the maintainer or accepted spec.
+
+An old architectural decision enters wild wood:
 
 ```yaml
 bucket: import
@@ -10,7 +12,7 @@ authority: hearsay
 body: The monolith owns user authentication.
 ```
 
-Later changelog says:
+A later changelog entry:
 
 ```yaml
 bucket: import
@@ -32,4 +34,4 @@ origin:
 body: The ADR is probably superseded by v3 identity-service changes.
 ```
 
-It still is not project ground until the maintainer/spec adopts it.
+Synthesis can retrieve. It is not project ground until the maintainer adopts it.

@@ -20,7 +20,7 @@ Forest is a constitution first and a Python reference second. Changes should pre
 - Framework abstractions over the store
 - Features that promote text without an explicit authority ceremony
 
-Add cables when the boring core hurts, not before.
+Add machinery when the boring core hurts, not before.
 
 ## Pull requests
 

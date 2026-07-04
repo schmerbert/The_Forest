@@ -55,6 +55,31 @@ def test_body_rewrite_refuses(tmp_path):
         s.conn.execute("UPDATE entries SET body = 'changed' WHERE id = ?", (pair_id,))
 
 
+def test_entry_delete_refuses(tmp_path):
+    s = store(tmp_path)
+    pair_id = s.insert_pair("Her brother's name is Elias.")
+    with pytest.raises(sqlite3.IntegrityError, match="delete refused"):
+        s.conn.execute("DELETE FROM entries WHERE id = ?", (pair_id,))
+
+
+def test_edge_delete_refuses(tmp_path):
+    s = store(tmp_path)
+    pair_id = s.insert_pair("anchor")
+    note_id = s.insert_entry(
+        body="note",
+        bucket="note",
+        signature="model",
+        authority="model",
+        origins=[(pair_id, "derived_from")],
+    )
+    edge_id = s.conn.execute(
+        "SELECT id FROM edges WHERE from_id = ? AND to_id = ?",
+        (note_id, pair_id),
+    ).fetchone()["id"]
+    with pytest.raises(sqlite3.IntegrityError, match="delete refused"):
+        s.conn.execute("DELETE FROM edges WHERE id = ?", (edge_id,))
+
+
 def test_sealed_entry_does_not_retrieve(tmp_path):
     s = store(tmp_path)
     pair_id = s.insert_pair("Her brother's name is Elias.")

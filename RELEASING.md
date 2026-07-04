@@ -2,6 +2,8 @@
 
 Every public release follows the same checklist. Do not skip steps.
 
+Forest ships on **GitHub** — the constitution (`FOREST.md`, `schema.sql`) is the product. PyPI is optional and not used for now.
+
 ## Version numbers
 
 Keep these in sync before tagging:
@@ -25,9 +27,8 @@ Tag format: `v0.1.0` (must match the version with a `v` prefix).
 ```bash
 git checkout main
 git pull
+pip install -e ".[test]"
 pytest -q
-python -m build
-pip install dist/*.whl && pytest -q
 
 git tag -a v0.1.0 -m "v0.1.0"
 git push origin main
@@ -36,22 +37,31 @@ git push origin v0.1.0
 
 Pushing the tag triggers [`.github/workflows/release.yml`](.github/workflows/release.yml), which:
 
-1. Builds sdist + wheel
-2. Runs the full hostile test suite against the wheel
-3. Creates a GitHub Release with attached artifacts
-4. Publishes to PyPI (when configured)
+1. Runs the full hostile test suite
+2. Creates a [GitHub Release](https://github.com/schmerbert/The_Forest/releases) with auto-generated notes
 
-## PyPI setup (one time)
+## How adopters get Forest
 
-1. Create a PyPI project named `forest-custody-memory`
-2. In PyPI → **Publishing** → **Add a new pending publisher**:
-   - Owner: `schmerbert`
-   - Repository: `The-Forest`
-   - Workflow: `release.yml`
-   - Environment: (leave blank unless you add one)
-3. The release workflow uses OIDC trusted publishing — no long-lived API token required
+Most adopters copy the spec — no install step:
 
-Until PyPI trusted publishing is configured, the GitHub Release and wheel artifacts still publish; only the PyPI step will fail.
+```bash
+git clone https://github.com/schmerbert/The_Forest.git
+cp The_Forest/schema.sql your-project/woods/schema.sql
+# Read FOREST.md. Implement ceremonies in your app.
+```
+
+Developers who want the reference wrapper from a checkout:
+
+```bash
+git clone https://github.com/schmerbert/The_Forest.git
+cd The_Forest
+pip install -e ".[test]"
+pytest -q
+```
+
+## PyPI (later, optional)
+
+Not configured. If you add pip publishing across repos later, re-enable wheel build + `pypa/gh-action-pypi-publish` in `release.yml` and register trusted publishing on PyPI.
 
 ## After release
 
