@@ -110,7 +110,7 @@ ground. Status is derived:
 
 An edge records ancestry or relation. Keep the vocabulary small — a large edge taxonomy becomes another similarity layer.
 
-Kinds in v0.2:
+Kinds in v0.3:
 
 | Kind | Meaning |
 |------|---------|
@@ -122,6 +122,10 @@ Kinds in v0.2:
 | `cites` | Claim points to external source/import |
 | `seals` | Sealing record points to sealed entry |
 | `unseals` | Unsealing record points to unsealed entry |
+| `asks_about` | Question points to the entry it grew next to (mycelium) |
+| `feeds` | Entry points to the question it nourishes (mycelium) |
+| `answers` | Entry points to the question it answers — never promotes |
+| `reopens` | Entry points to the question it reopens (mycelium) |
 
 `adopts`, `supersedes`, `seals`, and `unseals` are **ceremony acts** — they
 carry status, so the reference wrapper refuses them outside the ceremonies
@@ -394,11 +398,25 @@ Columns are cheap at birth and painful to retrofit.
 - v0.1 → v0.2 migration (`forest_memory.migrate`)
 - Hostile tests across constitutional, ceremonial, promotion-boundary, migration, and drift layers
 
-## What v0.2 does not ship
+## What v0.3 does not ship
 
 - Embeddings
 - Automated traverse or wander
-- Mycelium / question-fruiting machinery
 - Agent orchestration
 
 Add those when the boring core hurts — not before.
+
+## Mycelium (v0.3)
+
+Questions are mycelium: an underground network attached to the entries it
+grew from. A question is planted next to specific material (`asks_about`),
+nourished by later entries (`feeds` — each feed is ripeness), and it FRUITS
+at retrieval time: when a search disturbs soil a question is attached to,
+the open questions surface next to the results, ripest first
+(`mycelium.fruits_near`). Questions never appear in FTS retrieval on their
+own, and sealed questions do not fruit.
+
+Question state is derived, never stored, in the same way as sealing: a
+question is answered because the latest `answers`/`reopens` edge says so.
+Answering never promotes — if an answer deserves ground, the
+authority-holder adopts it through the ceremony like any other text.

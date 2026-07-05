@@ -16,7 +16,7 @@ Forest is a constitution first and a Python reference second. Changes should pre
 
 ## What does not belong in v0.x
 
-- Embeddings, wander, mycelium, or agent orchestration
+- Embeddings, wander, or agent orchestration (mycelium landed in v0.3 — questions only; it never promotes)
 - Framework abstractions over the store
 - Features that promote text without an explicit authority ceremony
 
