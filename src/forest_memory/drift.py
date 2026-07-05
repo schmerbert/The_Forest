@@ -28,11 +28,15 @@ def adoption_hash_for_entry(conn: sqlite3.Connection, entry_id: int) -> str | No
         return None
     if row["bucket"] != "adoption_record":
         raise ForestError(f"entry {entry_id} is not an adoption_record")
+    # A record migrated from v0.1 carries two adopts edges: the original
+    # record -> draft edge and the migration-added record -> ground edge.
+    # The ground edge is always the newer one, so take the latest.
     ground = conn.execute(
         """
         SELECT g.body_hash FROM edges a
         JOIN entries g ON g.id = a.to_id
         WHERE a.from_id = ? AND a.kind = 'adopts'
+        ORDER BY a.id DESC LIMIT 1
         """,
         (entry_id,),
     ).fetchone()

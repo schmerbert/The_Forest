@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from forest_memory import ForestError, ForestStore, hash_body
+from forest_memory import ForestError, ForestStore, check_file_drift, hash_body
 from forest_memory.migrate import migrate_v01_to_v02
 
 FIXTURE = Path(__file__).parent / "fixtures" / "schema_v01.sql"
@@ -108,6 +108,35 @@ def test_migration_translates_status_into_trails(tmp_path):
     assert report["entries"] == 7
     # forged ground + column-only seal + old_canon (ground with no v0.1 record)
     assert report["synthetic_records"] == 3
+
+
+def test_drift_uses_ground_hash_on_migrated_store(tmp_path):
+    # A migrated adoption record carries two adopts edges (v0.1 record->draft
+    # plus the migration-added record->ground). Drift must compare against the
+    # ground entry's hash, not the draft's.
+    old_db = tmp_path / "v01.db"
+    make_v01(old_db)
+    new_db = tmp_path / "v02.db"
+    migrate_v01_to_v02(old_db, new_db)
+
+    with ForestStore(new_db) as s:
+        record = s.conn.execute(
+            "SELECT id FROM entries WHERE bucket = 'adoption_record' AND signature != 'migration'"
+        ).fetchone()["id"]
+        n_adopts = s.conn.execute(
+            "SELECT COUNT(*) AS n FROM edges WHERE from_id = ? AND kind = 'adopts'",
+            (record,),
+        ).fetchone()["n"]
+        assert n_adopts == 2
+
+        canon_file = tmp_path / "canon.md"
+        canon_file.write_text("Elias betrayed her in winter.", encoding="utf-8")
+        assert check_file_drift(canon_file, s, record) == []
+
+        canon_file.write_text("Elias forgave her in winter.", encoding="utf-8")
+        warnings = check_file_drift(canon_file, s, record)
+        assert len(warnings) == 1
+        assert "does not match adoption trail" in warnings[0]["text"]
 
 
 def test_migration_refuses_tampered_hashes(tmp_path):
