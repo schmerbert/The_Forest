@@ -1,5 +1,5 @@
 -- =============================================================================
--- Forest constitution — reference schema (v0.2)
+-- Forest constitution — reference schema (v0.3)
 -- =============================================================================
 --
 -- This file is the enforced law. Read FOREST.md for rationale.
@@ -39,7 +39,7 @@
 --   UPDATE can also run DROP TRIGGER. If you need protection against a
 --   hostile writer, put the file behind an authenticating service boundary.
 --
--- Known gaps (v0.2):
+-- Known gaps (v0.3):
 --   - body_hash format is checked here; its correctness (hash actually
 --     matches body) is checked by the wrapper, not by SQLite
 --   - speaker authentication for adoption quotes is the host application's

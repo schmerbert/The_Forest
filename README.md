@@ -49,11 +49,11 @@ pytest -q
 | [`examples/`](examples/) | Writer, research, and codebase adoption stories |
 | [`tests/`](tests/) | Hostile tests — refusals the spec requires, run as code |
 
-**v0.2 includes:** insert discipline, adoption, supersession, sealing + unsealing, search + retrieval log (with result sets), ceremony gates, file drift checks, v0.1 migration.
+**v0.3 includes:** insert discipline, adoption, supersession, sealing + unsealing, search + retrieval log (with result sets), ceremony gates, file drift checks, mycelium (questions that fruit next to the nodes a search disturbs), and migration from any earlier store version (`migrate_to_latest`).
 
-**v0.2 does not include:** embeddings, autonomous retrieval, or agent orchestration. Add those only when the core schema starts to hurt.
+**v0.3 does not include:** embeddings, autonomous retrieval, or agent orchestration. Add those only when the core schema starts to hurt.
 
-**v0.2 is a breaking release.** An external audit showed the v0.1 promotion boundary could be forged by writing status columns directly. v0.2 removes those columns: status (ground / superseded / sealed) is derived from the append-only record trail, so forging status requires performing the ceremony. If you copied the v0.1 schema, re-copy — see the [CHANGELOG](CHANGELOG.md) for the disclosure and migration guide.
+**Upgrading from v0.1 or v0.2:** one call — `migrate_to_latest(old_path, new_path)`. Your original file is never written, and the store refuses to open outdated files rather than fail confusingly. The v0.1 → v0.2 change was the breaking one: an external audit showed the v0.1 promotion boundary could be forged by writing status columns directly, so v0.2 removed those columns — status (ground / superseded / sealed) is derived from the append-only record trail, and forging status requires performing the ceremony. If you copied the v0.1 schema, re-copy. See the [CHANGELOG](CHANGELOG.md) for the disclosure and migration guide.
 
 ---
 
@@ -116,7 +116,7 @@ Forest only works if it refuses the usual shortcuts — unsigned inserts, praise
 | Ceremonial | `adopt_to_ground` (your app must call a gate like this) |
 | Drift | `check_file_drift` when ground also lives in files (whole-file in v0.2; see FOREST.md §9) |
 
-46 tests, including the seven exploits from the external audit of v0.1 as refusals. All should pass before you trust a fork.
+57 tests, including the seven exploits from the external audit of v0.1 as refusals. All should pass before you trust a fork.
 
 ---
 
