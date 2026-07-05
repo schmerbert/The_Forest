@@ -10,8 +10,14 @@ from pathlib import Path
 
 import pytest
 
-from forest_memory import ForestError, ForestStore, check_file_drift, hash_body
-from forest_memory.migrate import migrate_v01_to_v02
+from forest_memory import (
+    ForestError,
+    ForestStore,
+    adopt_to_ground,
+    check_file_drift,
+    hash_body,
+)
+from forest_memory.migrate import migrate_v01_to_v02, migrate_v02_to_v03
 
 FIXTURE = Path(__file__).parent / "fixtures" / "schema_v01.sql"
 
@@ -144,6 +150,51 @@ def test_store_refuses_to_open_v01_file(tmp_path):
     make_v01(old_db)
     with pytest.raises(ForestError, match="v0.1 store.*migrate_v01_to_v02"):
         ForestStore(old_db)
+
+
+def test_migrate_v02_to_v03_preserves_trail_and_widens_vocabulary(tmp_path):
+    # Build a store with a ceremony and a seal, copy it to v0.3, and check the
+    # derived state survives and the mycelium edge kinds are now accepted.
+    from forest_memory.mycelium import fruits_near, plant_question
+
+    old_db = tmp_path / "v02.db"
+    with ForestStore(old_db) as s:
+        s.init_schema()
+        pair = s.insert_pair("anchor")
+        draft = s.insert_entry(
+            body="Elias betrayed her in winter.",
+            bucket="draft",
+            signature="model",
+            origins=[(pair, "spoken_in")],
+        )
+        adopt_to_ground(
+            s,
+            adopted_entry_id=draft,
+            body="Elias betrayed her in winter.",
+            adopting_words="Yes — adopt this as canon.",
+            adopting_signature="author",
+            source_verbatim="Elias betrayed her in winter.",
+        )
+        secret = s.insert_entry(
+            body="The sealed secret.",
+            bucket="note",
+            signature="model",
+            origins=[(pair, "spoken_in")],
+        )
+        s.seal(entry_id=secret, quote="Seal it.")
+        ground = s.conn.execute(
+            "SELECT id FROM entries WHERE bucket = 'canon'"
+        ).fetchone()["id"]
+
+    new_db = tmp_path / "v03.db"
+    report = migrate_v02_to_v03(old_db, new_db)
+    assert report["entries"] > 0 and report["edges"] > 0
+
+    with ForestStore(new_db) as s:
+        assert s.is_ground(ground)
+        assert s.is_sealed(secret)
+        q = plant_question(s, body="Why in winter?", about_ids=[ground])
+        assert [f["question"]["id"] for f in fruits_near(s, [ground])] == [q]
 
 
 def test_migration_refuses_tampered_hashes(tmp_path):

@@ -109,7 +109,11 @@ CREATE TABLE IF NOT EXISTS edges (
     'supersedes',   -- new entry -> old entry
     'cites',        -- claim -> source/import
     'seals',        -- sealing record -> sealed entry
-    'unseals'       -- unsealing record -> unsealed entry
+    'unseals',      -- unsealing record -> unsealed entry
+    'asks_about',   -- question -> entry it grew next to (mycelium)
+    'feeds',        -- entry -> question it nourishes (mycelium)
+    'answers',      -- entry -> question it answers (mycelium; never promotes)
+    'reopens'       -- entry -> question it reopens (mycelium)
   )),
 
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),

@@ -2,6 +2,36 @@
 
 All notable changes to the Forest constitution and reference wrapper.
 
+## [0.3.0] — 2026-07-05
+
+### Mycelium — questions fruit next to the nodes a search disturbs
+
+Questions are mycelium: an underground network attached to the entries it
+grew from. New host-layer module `forest_memory.mycelium`:
+
+- `plant_question` — a question grows next to specific material (`asks_about` edges); it is never a root
+- `feed_question` — later entries nourish a question (`feeds`); each feed is ripeness
+- `fruits_near(store, entry_ids)` — the fruiting mechanic: given the ids a search returned (or any nodes being read), the open questions attached to them surface alongside, ripest first. Questions never appear in FTS retrieval on their own; sealed questions do not fruit
+- `answer_question` / `reopen_question` / `is_open` — question state is derived, never stored, same idiom as sealing: the latest `answers`/`reopens` edge wins
+- **Answering never promotes.** If an answer deserves ground, the authority-holder adopts it through the ceremony like any other text
+
+### Constitution (`schema.sql`) — breaking
+
+- Edge-kind vocabulary widened: `asks_about`, `feeds`, `answers`, `reopens`.
+  The vocabulary is a CHECK baked into the edges table, so **v0.2 stores
+  need `forest_memory.migrate.migrate_v02_to_v03(old_path, new_path)`** — a
+  straight copy (ids and timestamps preserved, old file never written) into
+  the widened schema. The closed vocabulary caught this addition exactly as
+  designed: unknown edge kinds are refused at the SQL layer.
+
+### Also
+
+- Drift check on migrated v0.1 stores compares against the ground entry's
+  hash (a migrated adoption record carries two `adopts` edges; the latest is
+  the ground edge)
+- v0.1 stores are refused on open with a pointer to `migrate_v01_to_v02`
+- A test enforces the two `schema.sql` copies stay byte-identical
+
 ## [0.2.0] — 2026-07-05
 
 ### Security — the v0.1 promotion boundary did not hold

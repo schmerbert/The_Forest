@@ -113,6 +113,71 @@ def migrate_v01_to_v02(old_path: str | Path, new_path: str | Path) -> dict:
     return report
 
 
+def migrate_v02_to_v03(old_path: str | Path, new_path: str | Path) -> dict:
+    """Copy a v0.2 store into a fresh v0.3 store at new_path.
+
+    v0.3 only widens the edge-kind vocabulary (the mycelium kinds:
+    asks_about, feeds, answers, reopens). Rows copy over unchanged with
+    their ids and timestamps; the v0.2 file is never written.
+    """
+    new_path = Path(new_path)
+    if new_path.exists():
+        raise ForestError(f"refusing to overwrite existing file: {new_path}")
+
+    old = sqlite3.connect(f"file:{Path(old_path)}?mode=ro", uri=True)
+    old.row_factory = sqlite3.Row
+    report: dict = {"entries": 0, "edges": 0, "retrieval_log": 0}
+    try:
+        cols = {r["name"] for r in old.execute("PRAGMA table_info(entries)")}
+        if {"authority", "visibility"} & cols:
+            raise ForestError(
+                f"{old_path} is a v0.1 store; run migrate_v01_to_v02 first"
+            )
+        store = ForestStore(new_path)
+        store.init_schema()
+        conn = store.conn
+        with conn:
+            for e in old.execute("SELECT * FROM entries ORDER BY id"):
+                conn.execute(
+                    """
+                    INSERT INTO entries
+                      (id, created_at, forest, bucket, signature, body, body_hash, meta_json)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        e["id"], e["created_at"], e["forest"], e["bucket"],
+                        e["signature"], e["body"], e["body_hash"], e["meta_json"],
+                    ),
+                )
+                report["entries"] += 1
+            for g in old.execute("SELECT * FROM edges ORDER BY id"):
+                conn.execute(
+                    """
+                    INSERT INTO edges (id, from_id, to_id, kind, created_at)
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (g["id"], g["from_id"], g["to_id"], g["kind"], g["created_at"]),
+                )
+                report["edges"] += 1
+            for r in old.execute("SELECT * FROM retrieval_log ORDER BY id"):
+                conn.execute(
+                    """
+                    INSERT INTO retrieval_log
+                      (id, created_at, query, open_buckets_json, result_ids_json, note)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        r["id"], r["created_at"], r["query"],
+                        r["open_buckets_json"], r["result_ids_json"], r["note"],
+                    ),
+                )
+                report["retrieval_log"] += 1
+        store.close()
+    finally:
+        old.close()
+    return report
+
+
 def _synthetic_record(conn: sqlite3.Connection, *, bucket: str, body: str) -> int:
     cur = conn.execute(
         """
