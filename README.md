@@ -114,7 +114,7 @@ Forest only works if it refuses the usual shortcuts — unsigned inserts, praise
 |-------|-------------|
 | Constitutional | `schema.sql` + `ForestStore` |
 | Ceremonial | `adopt_to_ground` (your app must call a gate like this) |
-| Drift | `check_file_drift` when ground also lives in files (whole-file in v0.2; see FOREST.md §9) |
+| Drift | `check_file_drift` when ground also lives in files (whole-file in v0.3; see FOREST.md §9) |
 
 57 tests, including the seven exploits from the external audit of v0.1 as refusals. All should pass before you trust a fork.
 
