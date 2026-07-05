@@ -113,6 +113,41 @@ def migrate_v01_to_v02(old_path: str | Path, new_path: str | Path) -> dict:
     return report
 
 
+def store_version(path: str | Path) -> str:
+    """Detect a store file's schema version: 'v0.1', 'v0.2', or 'v0.3'."""
+    conn = sqlite3.connect(f"file:{Path(path)}?mode=ro", uri=True)
+    conn.row_factory = sqlite3.Row
+    try:
+        cols = {r["name"] for r in conn.execute("PRAGMA table_info(entries)")}
+        if not cols:
+            raise ForestError(f"{path} has no entries table; not a Forest store")
+        if {"authority", "visibility"} & cols:
+            return "v0.1"
+        edges_sql = conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='edges'"
+        ).fetchone()["sql"]
+        return "v0.3" if "asks_about" in edges_sql else "v0.2"
+    finally:
+        conn.close()
+
+
+def migrate_to_latest(old_path: str | Path, new_path: str | Path) -> dict:
+    """Detect the store's version and run whatever migration it needs.
+
+    One call regardless of where the store started; the original file is
+    never written. Both migrations build their output on the current schema,
+    so a single copy reaches latest from either v0.1 or v0.2.
+    """
+    version = store_version(old_path)
+    if version == "v0.3":
+        raise ForestError(f"{old_path} is already a v0.3 store; nothing to migrate")
+    if version == "v0.1":
+        hop = migrate_v01_to_v02(old_path, new_path)
+    else:
+        hop = migrate_v02_to_v03(old_path, new_path)
+    return {"from": version, "hops": [{"to": "v0.3", **hop}]}
+
+
 def migrate_v02_to_v03(old_path: str | Path, new_path: str | Path) -> dict:
     """Copy a v0.2 store into a fresh v0.3 store at new_path.
 

@@ -43,19 +43,29 @@ class ForestStore:
         self.conn.execute("PRAGMA foreign_keys = ON")
         self.conn.execute("PRAGMA journal_mode = WAL")
         self.conn.execute("PRAGMA busy_timeout = 5000")
-        self._refuse_v01_store()
+        self._refuse_outdated_store()
 
-    def _refuse_v01_store(self) -> None:
-        # v0.1 stored status in mutable columns; v0.2 derives it from the
-        # record trail. Opening a v0.1 file with v0.2 code would fail in
-        # confusing ways — refuse up front and point at the migration.
+    def _refuse_outdated_store(self) -> None:
+        # Opening an outdated file with current code fails in confusing ways
+        # (v0.1: missing views; v0.2: new edge kinds silently dropped by the
+        # closed vocabulary). Refuse up front and point at the migration.
         cols = {row["name"] for row in self.conn.execute("PRAGMA table_info(entries)")}
+        if not cols:
+            return  # fresh file awaiting init_schema
+        version = None
         if {"authority", "visibility"} & cols:
+            version = "v0.1 (mutable status columns)"
+        else:
+            edges_sql = self.conn.execute(
+                "SELECT sql FROM sqlite_master WHERE type='table' AND name='edges'"
+            ).fetchone()
+            if edges_sql and "asks_about" not in edges_sql["sql"]:
+                version = "v0.2 (edge vocabulary predates mycelium)"
+        if version:
             self.conn.close()
             raise ForestError(
-                f"{self.path} is a v0.1 store (mutable status columns); "
-                "migrate it with forest_memory.migrate.migrate_v01_to_v02 "
-                "before opening"
+                f"{self.path} is a {version} store; migrate it with "
+                "forest_memory.migrate.migrate_to_latest before opening"
             )
 
     def close(self) -> None:

@@ -148,53 +148,100 @@ def test_drift_uses_ground_hash_on_migrated_store(tmp_path):
 def test_store_refuses_to_open_v01_file(tmp_path):
     old_db = tmp_path / "v01.db"
     make_v01(old_db)
-    with pytest.raises(ForestError, match="v0.1 store.*migrate_v01_to_v02"):
+    with pytest.raises(ForestError, match="v0.1.*migrate_to_latest"):
         ForestStore(old_db)
 
 
+V02_FIXTURE = Path(__file__).parent / "fixtures" / "schema_v02.sql"
+
+
+def make_v02(path):
+    """A raw v0.2 store with a full ceremony trail and a sealed entry."""
+    conn = sqlite3.connect(path)
+    conn.executescript(V02_FIXTURE.read_text(encoding="utf-8"))
+
+    def insert(body, bucket, signature):
+        cur = conn.execute(
+            """
+            INSERT INTO entries (forest, bucket, signature, body, body_hash, meta_json)
+            VALUES ('home', ?, ?, ?, ?, '{}')
+            """,
+            (bucket, signature, body, hash_body(body)),
+        )
+        return cur.lastrowid
+
+    def edge(from_id, to_id, kind):
+        conn.execute(
+            "INSERT INTO edges (from_id, to_id, kind) VALUES (?, ?, ?)",
+            (from_id, to_id, kind),
+        )
+
+    pair = insert("USER:\nanchor", "session_pair", "conversation")
+    draft = insert("Elias betrayed her in winter.", "draft", "model")
+    edge(draft, pair, "spoken_in")
+    ground = insert("Elias betrayed her in winter.", "canon", "author")
+    edge(ground, draft, "derived_from")
+    record = insert("Adopt this.", "adoption_record", "author")
+    edge(record, draft, "derived_from")
+    edge(record, ground, "adopts")
+    secret = insert("The sealed secret.", "note", "model")
+    edge(secret, pair, "spoken_in")
+    seal_rec = insert("Seal it.", "sealing_record", "author")
+    edge(seal_rec, secret, "seals")
+    conn.commit()
+    conn.close()
+    return {"ground": ground, "secret": secret}
+
+
 def test_migrate_v02_to_v03_preserves_trail_and_widens_vocabulary(tmp_path):
-    # Build a store with a ceremony and a seal, copy it to v0.3, and check the
-    # derived state survives and the mycelium edge kinds are now accepted.
     from forest_memory.mycelium import fruits_near, plant_question
 
     old_db = tmp_path / "v02.db"
-    with ForestStore(old_db) as s:
-        s.init_schema()
-        pair = s.insert_pair("anchor")
-        draft = s.insert_entry(
-            body="Elias betrayed her in winter.",
-            bucket="draft",
-            signature="model",
-            origins=[(pair, "spoken_in")],
-        )
-        adopt_to_ground(
-            s,
-            adopted_entry_id=draft,
-            body="Elias betrayed her in winter.",
-            adopting_words="Yes — adopt this as canon.",
-            adopting_signature="author",
-            source_verbatim="Elias betrayed her in winter.",
-        )
-        secret = s.insert_entry(
-            body="The sealed secret.",
-            bucket="note",
-            signature="model",
-            origins=[(pair, "spoken_in")],
-        )
-        s.seal(entry_id=secret, quote="Seal it.")
-        ground = s.conn.execute(
-            "SELECT id FROM entries WHERE bucket = 'canon'"
-        ).fetchone()["id"]
+    ids = make_v02(old_db)
+
+    # v0.3 code refuses to open the v0.2 file rather than silently dropping
+    # mycelium edges against the old closed vocabulary.
+    with pytest.raises(ForestError, match="v0.2.*migrate_to_latest"):
+        ForestStore(old_db)
 
     new_db = tmp_path / "v03.db"
     report = migrate_v02_to_v03(old_db, new_db)
     assert report["entries"] > 0 and report["edges"] > 0
 
     with ForestStore(new_db) as s:
-        assert s.is_ground(ground)
-        assert s.is_sealed(secret)
-        q = plant_question(s, body="Why in winter?", about_ids=[ground])
-        assert [f["question"]["id"] for f in fruits_near(s, [ground])] == [q]
+        assert s.is_ground(ids["ground"])
+        assert s.is_sealed(ids["secret"])
+        q = plant_question(s, body="Why in winter?", about_ids=[ids["ground"]])
+        assert [f["question"]["id"] for f in fruits_near(s, [ids["ground"]])] == [q]
+
+
+def test_migrate_to_latest_chains_from_any_version(tmp_path):
+    from forest_memory.migrate import migrate_to_latest, store_version
+
+    # From v0.1: two hops.
+    v01 = tmp_path / "v01.db"
+    ids = make_v01(v01)
+    assert store_version(v01) == "v0.1"
+    target = tmp_path / "latest.db"
+    report = migrate_to_latest(v01, target)
+    assert report["from"] == "v0.1"
+    assert [h["to"] for h in report["hops"]] == ["v0.3"]
+    with ForestStore(target) as s:
+        assert s.is_ground(ids["canon"])
+        assert s.is_sealed(ids["sealed"])
+    assert store_version(target) == "v0.3"
+
+    # From v0.2: one hop.
+    v02 = tmp_path / "v02.db"
+    make_v02(v02)
+    target2 = tmp_path / "latest2.db"
+    report = migrate_to_latest(v02, target2)
+    assert report["from"] == "v0.2"
+    assert [h["to"] for h in report["hops"]] == ["v0.3"]
+
+    # Already current: nothing to do.
+    with pytest.raises(ForestError, match="already"):
+        migrate_to_latest(target, tmp_path / "again.db")
 
 
 def test_migration_refuses_tampered_hashes(tmp_path):
