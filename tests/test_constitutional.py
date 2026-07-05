@@ -2,7 +2,7 @@ import sqlite3
 
 import pytest
 
-from forest_memory import ForestError, ForestStore
+from forest_memory import ForestError, ForestStore, adopt_to_ground
 
 
 def store(tmp_path):
@@ -18,7 +18,6 @@ def test_unsigned_insert_refuses(tmp_path):
             body="hello",
             bucket="note",
             signature="",
-            authority="model",
             origins=[(1, "derived_from")],
         )
 
@@ -26,7 +25,7 @@ def test_unsigned_insert_refuses(tmp_path):
 def test_orphan_non_root_insert_refuses(tmp_path):
     s = store(tmp_path)
     with pytest.raises(ForestError):
-        s.insert_entry(body="orphan", bucket="note", signature="model", authority="model")
+        s.insert_entry(body="orphan", bucket="note", signature="model")
 
 
 def test_session_pair_can_be_root(tmp_path):
@@ -37,14 +36,14 @@ def test_session_pair_can_be_root(tmp_path):
 
 def test_invalid_bucket_refused_by_schema(tmp_path):
     s = store(tmp_path)
-    pair_id = s.insert_pair("anchor")
+    s.insert_pair("anchor")
     with pytest.raises(sqlite3.IntegrityError):
         s.conn.execute(
             """
-            INSERT INTO entries
-              (forest, bucket, signature, authority, visibility, body, body_hash, meta_json)
-            VALUES ('home', 'typo_bucket', 'model', 'model', 'open', 'x', 'deadbeef', '{}')
+            INSERT INTO entries (forest, bucket, signature, body, body_hash, meta_json)
+            VALUES ('home', 'typo_bucket', 'model', 'x', ?, '{}')
             """,
+            ("a" * 64,),
         )
 
 
@@ -69,7 +68,6 @@ def test_edge_delete_refuses(tmp_path):
         body="note",
         bucket="note",
         signature="model",
-        authority="model",
         origins=[(pair_id, "derived_from")],
     )
     edge_id = s.conn.execute(
@@ -87,7 +85,6 @@ def test_sealed_entry_does_not_retrieve(tmp_path):
         body="Elias betrayed her in winter.",
         bucket="inference",
         signature="model",
-        authority="inference",
         origins=[(pair_id, "derived_from")],
     )
     assert s.search("Elias")
@@ -99,14 +96,25 @@ def test_sealed_entry_does_not_retrieve(tmp_path):
 def test_superseded_ground_not_current(tmp_path):
     s = store(tmp_path)
     pair_id = s.insert_pair("Her brother's name is Elias.")
-    old_id = s.insert_entry(
+    draft_id = s.insert_entry(
         body="Elias betrayed her in spring.",
-        bucket="canon",
-        signature="author",
-        authority="ground",
+        bucket="draft",
+        signature="model",
         origins=[(pair_id, "spoken_in")],
     )
-    new_id = s.supersede(old_id=old_id, new_body="Elias betrayed her in winter.")
+    old_id = adopt_to_ground(
+        s,
+        adopted_entry_id=draft_id,
+        body="Elias betrayed her in spring.",
+        adopting_words="Yes — shelve this as canon.",
+        adopting_signature="author",
+    )
+    new_id = s.supersede(
+        old_id=old_id,
+        new_body="Elias betrayed her in winter.",
+        adopting_words="Correction: winter, not spring. Supersede.",
+        adopting_signature="author",
+    )
     current = list(s.conn.execute("SELECT id, body FROM current_ground"))
     assert [(row["id"], row["body"]) for row in current] == [
         (new_id, "Elias betrayed her in winter."),

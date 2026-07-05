@@ -44,14 +44,16 @@ pytest -q
 | Artifact | What it is |
 |----------|------------|
 | [`FOREST.md`](FOREST.md) | The constitution — **read this first** |
-| [`schema.sql`](schema.sql) | Enforced rules: CHECK constraints, append-only trigger, sealed-entry exclusion |
+| [`schema.sql`](schema.sql) | Enforced rules: immutable entries/edges, derived-status views, sealed-body FTS removal |
 | [`src/forest_memory/`](src/forest_memory/) | Minimal Python reference (not a framework) |
 | [`examples/`](examples/) | Writer, research, and codebase adoption stories |
 | [`tests/`](tests/) | Hostile tests — refusals the spec requires, run as code |
 
-**v0.1 includes:** insert discipline, adoption, supersession, sealing, search + retrieval log, ceremony gates, file drift checks.
+**v0.2 includes:** insert discipline, adoption, supersession, sealing + unsealing, search + retrieval log (with result sets), ceremony gates, file drift checks, v0.1 migration.
 
-**v0.1 does not include:** embeddings, autonomous retrieval, or agent orchestration. Add those only when the core schema starts to hurt.
+**v0.2 does not include:** embeddings, autonomous retrieval, or agent orchestration. Add those only when the core schema starts to hurt.
+
+**v0.2 is a breaking release.** An external audit showed the v0.1 promotion boundary could be forged by writing status columns directly. v0.2 removes those columns: status (ground / superseded / sealed) is derived from the append-only record trail, so forging status requires performing the ceremony. If you copied the v0.1 schema, re-copy — see the [CHANGELOG](CHANGELOG.md) for the disclosure and migration guide.
 
 ---
 
@@ -69,7 +71,7 @@ Every piece of stored text has:
 Search can **find** text. Only a recorded ceremony can **promote** it to ground truth.
 
 ```text
-session_pair ──► inference / draft ──► adoption_record ──► canon
+session_pair ──► inference / draft ──► canon + adoption_record (one transaction)
                         │
                         └──► refused unless authority-holder adopts
 ```
@@ -85,7 +87,6 @@ with ForestStore("woods.db") as store:
         body="Maybe Elias betrayed her.",
         bucket="inference",
         signature="model",
-        authority="inference",
         origins=[(pair, "derived_from")],
     )
 
@@ -97,6 +98,7 @@ with ForestStore("woods.db") as store:
         adopted_entry_id=draft,
         body="Elias betrayed her in winter.",
         adopting_words="Yes — adopt this as canon.",
+        adopting_signature="author",  # who spoke — your app authenticates this
     )
 ```
 
@@ -112,9 +114,9 @@ Forest only works if it refuses the usual shortcuts — unsigned inserts, praise
 |-------|-------------|
 | Constitutional | `schema.sql` + `ForestStore` |
 | Ceremonial | `adopt_to_ground` (your app must call a gate like this) |
-| Drift | `check_file_drift` when ground also lives in files (whole-file in v0.1; see FOREST.md §9) |
+| Drift | `check_file_drift` when ground also lives in files (whole-file in v0.2; see FOREST.md §9) |
 
-17 tests. All should pass before you trust a fork.
+46 tests, including the seven exploits from the external audit of v0.1 as refusals. All should pass before you trust a fork.
 
 ---
 

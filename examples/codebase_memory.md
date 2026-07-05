@@ -8,7 +8,6 @@ An old architectural decision enters wild wood:
 bucket: import
 forest: wild
 signature: source:docs/adr-004.md
-authority: hearsay
 body: The monolith owns user authentication.
 ```
 
@@ -18,7 +17,6 @@ A later changelog entry:
 bucket: import
 forest: wild
 signature: source:CHANGELOG.md
-authority: hearsay
 body: Auth moved to the identity service in v3.
 ```
 
@@ -27,7 +25,6 @@ A model may synthesize:
 ```yaml
 bucket: synthesis
 signature: model
-authority: inference
 origin:
   - cites -> adr_entry
   - cites -> changelog_entry

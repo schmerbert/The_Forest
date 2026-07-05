@@ -8,7 +8,6 @@ A source claim enters wild wood:
 forest: wild
 bucket: import
 signature: source:paper-doi-or-url
-authority: hearsay
 body: Exact quoted or summarized source passage, depending on your citation rules.
 ```
 
@@ -18,9 +17,8 @@ A researcher interpretation enters home wood:
 forest: home
 bucket: note
 signature: researcher
-authority: ground
 origin: cites -> source_entry
 body: We will treat this result as relevant to experiment B, not experiment A.
 ```
 
-The source owns the claim (`hearsay`). The researcher owns the local interpretation (`ground` for this project only — not universal truth).
+The source owns the claim (wild-wood `import`). The researcher's note becomes project ground only through an adoption ceremony — an `adoption_record` with an `adopts` edge to a canon entry (ground for this project only, not universal truth).

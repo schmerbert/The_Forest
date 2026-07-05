@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from forest_memory import ForestStore, check_file_drift
+from forest_memory import ForestStore, adopt_to_ground, check_file_drift
 
 
 def store(tmp_path):
@@ -16,13 +16,23 @@ def test_file_drift_detected_after_silent_edit(tmp_path):
     canon_file.write_text(original, encoding="utf-8")
 
     pair_id = s.insert_pair("adoption ceremony")
-    record_id = s.insert_entry(
+    draft_id = s.insert_entry(
         body=original,
-        bucket="adoption_record",
-        signature="author",
-        authority="record",
-        origins=[(pair_id, "adopts")],
+        bucket="draft",
+        signature="model",
+        origins=[(pair_id, "spoken_in")],
     )
+    adopt_to_ground(
+        s,
+        adopted_entry_id=draft_id,
+        body=original,
+        adopting_words="Yes — adopt this file as canon.",
+        adopting_signature="author",
+        source_verbatim=original,
+    )
+    record_id = s.conn.execute(
+        "SELECT id FROM entries WHERE bucket = 'adoption_record'"
+    ).fetchone()["id"]
 
     assert check_file_drift(canon_file, s, record_id) == []
 

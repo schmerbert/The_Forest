@@ -11,27 +11,33 @@ Stored as:
 ```yaml
 bucket: session_pair
 signature: conversation
-authority: record
 body: |
   USER: Her brother's name is Elias.
 ```
 
-Extracted ground:
+Extracted ground — written by the adoption ceremony, one transaction:
 
 ```yaml
+# the ground text
 bucket: canon
 signature: author
-authority: ground
-origin: spoken_in -> session_pair
+origin: derived_from -> session_pair
 body: Her brother's name is Elias.
+
+# the authority act that makes it ground
+bucket: adoption_record
+signature: author            # who spoke the adopting words
+edge: adopts -> canon entry
+body: "Yes — that's canon: her brother is Elias."
 ```
+
+The canon entry is ground *because* the adoption record points at it. There is no status column to set.
 
 Assistant proposes:
 
 ```yaml
 bucket: inference
 signature: model
-authority: inference
 origin: derived_from -> canon_entry
 body: Maybe Elias betrayed her.
 ```

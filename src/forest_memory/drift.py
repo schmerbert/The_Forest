@@ -14,15 +14,35 @@ from forest_memory.core import ForestError, ForestStore, hash_body
 
 
 def adoption_hash_for_entry(conn: sqlite3.Connection, entry_id: int) -> str | None:
+    """Return the body_hash of the ground entry an adoption record adopts.
+
+    In v0.2 the adoption record's own body is the authority-holder's quoted
+    adopting words; the adopted text lives in the ground entry reached
+    through the record's ``adopts`` edge.
+    """
     row = conn.execute(
-        "SELECT body_hash, bucket FROM entries WHERE id = ?",
+        "SELECT bucket FROM entries WHERE id = ?",
         (entry_id,),
     ).fetchone()
     if row is None:
         return None
     if row["bucket"] != "adoption_record":
         raise ForestError(f"entry {entry_id} is not an adoption_record")
-    return row["body_hash"]
+    # A record migrated from v0.1 carries two adopts edges: the original
+    # record -> draft edge and the migration-added record -> ground edge.
+    # The ground edge is always the newer one, so take the latest.
+    ground = conn.execute(
+        """
+        SELECT g.body_hash FROM edges a
+        JOIN entries g ON g.id = a.to_id
+        WHERE a.from_id = ? AND a.kind = 'adopts'
+        ORDER BY a.id DESC LIMIT 1
+        """,
+        (entry_id,),
+    ).fetchone()
+    if ground is None:
+        return None
+    return ground["body_hash"]
 
 
 def check_file_drift(
