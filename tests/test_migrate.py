@@ -139,6 +139,13 @@ def test_drift_uses_ground_hash_on_migrated_store(tmp_path):
         assert "does not match adoption trail" in warnings[0]["text"]
 
 
+def test_store_refuses_to_open_v01_file(tmp_path):
+    old_db = tmp_path / "v01.db"
+    make_v01(old_db)
+    with pytest.raises(ForestError, match="v0.1 store.*migrate_v01_to_v02"):
+        ForestStore(old_db)
+
+
 def test_migration_refuses_tampered_hashes(tmp_path):
     old_db = tmp_path / "v01.db"
     make_v01(old_db)

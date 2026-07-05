@@ -43,6 +43,20 @@ class ForestStore:
         self.conn.execute("PRAGMA foreign_keys = ON")
         self.conn.execute("PRAGMA journal_mode = WAL")
         self.conn.execute("PRAGMA busy_timeout = 5000")
+        self._refuse_v01_store()
+
+    def _refuse_v01_store(self) -> None:
+        # v0.1 stored status in mutable columns; v0.2 derives it from the
+        # record trail. Opening a v0.1 file with v0.2 code would fail in
+        # confusing ways — refuse up front and point at the migration.
+        cols = {row["name"] for row in self.conn.execute("PRAGMA table_info(entries)")}
+        if {"authority", "visibility"} & cols:
+            self.conn.close()
+            raise ForestError(
+                f"{self.path} is a v0.1 store (mutable status columns); "
+                "migrate it with forest_memory.migrate.migrate_v01_to_v02 "
+                "before opening"
+            )
 
     def close(self) -> None:
         self.conn.close()
