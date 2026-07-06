@@ -2,6 +2,19 @@
 
 All notable changes to the Forest constitution and reference wrapper.
 
+## [0.3.1] — 2026-07-06
+
+No code changes. First release published to PyPI as `forest-custody-memory`.
+
+- README restructured library-first: `pip install` as the primary path,
+  spec-copying moved to its own section for porters
+- New README sections: positioning ("Why not Mem0 / Letta / MemGPT?") and
+  the v0.1 audit story ("The audit that changed the schema")
+- Related projects linked (The Inn, TheMarble)
+- Release workflow now builds sdist + wheel, attaches them to the GitHub
+  Release, and publishes to PyPI via trusted publishing (gated on the
+  `pypi` environment); RELEASING.md updated to match
+
 ## [0.3.0] — 2026-07-05
 
 ### Mycelium — questions fruit next to the nodes a search disturbs
