@@ -4,6 +4,10 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+.claude/
 *.db
 *.sqlite
 *.sqlite3
+*.scroll
+*.db-wal
+*.db-shm

@@ -2,6 +2,27 @@
 
 All notable changes to the Forest constitution and reference wrapper.
 
+## [0.4.0] — 2026-07-31
+
+### Hard cut to clinical harness surface + custody truth hardening
+
+Breaking rewrite so the shipped package matches the README ops contract.
+
+- **Ops:** `write` / `write_pair` / `commit_turn`, `recall_similar` / `recall_side`, `open` / `around` / `step` / `read`, interim `move`, `root_to_ground`, gated `walk_back`; framed JSONL `Scroll` (`dump_all` + oversized / complete-file slice refused)
+- **Preview ≠ read:** recall/around return bounded excerpts only; full body is `read`
+- **Walk tickets:** `open` mints an opaque ticket; `around` discloses routes onto it; `step` spends and remints; `read` requires a valid ticket — forged positions refused
+- **Scroll ↔ pair:** `write_pair` requires `scroll_ptr`; `commit_turn` is the canonical heartbeat
+- **Access cites:** earned wild `read` pends `cites` onto the next pair
+- **Root:** only `root_to_ground` is public (`ForestStore._root` internal); `expected_body_hash` required; refuses sealed/superseded; postcondition must be current ground
+- **walk_back:** current ground + adopting_signature; audit previews + `scroll_ptr` only
+- **Safe FTS:** Unicode-aware plain-language tokenization; `ForestError` not raw SQLite
+- **Schema guard:** any existing `entries` table requires `forest_meta` 0.4.0 (empty rows included)
+- **Mutations:** `add_edge` commits; supersede goes through scrub + ceremony bucket guards
+- **Schema:** `forest_meta.schema_version = 0.4.0`
+- Soft `near` named in the README; not shipped
+- **Docs:** ops contract lives in `README.md` (former `docs/MAP.md` retired)
+- **Removed:** MCP integration (`integrations/mcp`); `insert_entry` / `insert_pair` / `search` / `adopt` mint-canon / `migrate_*` / public `ForestStore.root`
+
 ## [0.3.1] — 2026-07-06
 
 No code changes. First release published to PyPI as `forest-custody-memory`.

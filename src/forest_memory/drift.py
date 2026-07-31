@@ -1,4 +1,4 @@
-# drift — on-disk file vs adoption record body_hash (FOREST.md §10).
+# drift — on-disk file vs grounded entry body_hash (FOREST.md).
 #
 # Stores: nothing
 # Refuses: entry is not an adoption_record
@@ -14,12 +14,7 @@ from forest_memory.core import ForestError, ForestStore, hash_body
 
 
 def adoption_hash_for_entry(conn: sqlite3.Connection, entry_id: int) -> str | None:
-    """Return the body_hash of the ground entry an adoption record adopts.
-
-    In v0.2 the adoption record's own body is the authority-holder's quoted
-    adopting words; the adopted text lives in the ground entry reached
-    through the record's ``adopts`` edge.
-    """
+    """Return the body_hash of the entry an adoption record roots (in-place)."""
     row = conn.execute(
         "SELECT bucket FROM entries WHERE id = ?",
         (entry_id,),
@@ -28,9 +23,6 @@ def adoption_hash_for_entry(conn: sqlite3.Connection, entry_id: int) -> str | No
         return None
     if row["bucket"] != "adoption_record":
         raise ForestError(f"entry {entry_id} is not an adoption_record")
-    # A record migrated from v0.1 carries two adopts edges: the original
-    # record -> draft edge and the migration-added record -> ground edge.
-    # The ground edge is always the newer one, so take the latest.
     ground = conn.execute(
         """
         SELECT g.body_hash FROM edges a
@@ -50,13 +42,7 @@ def check_file_drift(
     store: ForestStore,
     adoption_entry_id: int,
 ) -> list[dict]:
-    """Return warnings if a readable file no longer matches the adoption trail.
-
-    v0.1 compares the hash of the **entire file** to the adoption record's
-    ``body_hash``. Use when the adopted body is the whole file. Multi-section
-    Markdown (one adopted paragraph in a larger doc) is not supported yet —
-    see FOREST.md §9.
-    """
+    """Warn if a readable file no longer matches the rooted entry body."""
     warnings: list[dict] = []
     if not file_path.exists():
         warnings.append({
