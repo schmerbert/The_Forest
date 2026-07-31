@@ -2,14 +2,6 @@
 
 All notable changes to the Forest constitution and reference wrapper.
 
-## [Unreleased]
-
-### 0.4 close-out
-
-- Ceremony `root` / `supersede` use ``BEGIN IMMEDIATE`` and re-check ground inside the lock — concurrent second path refused (hostile case 32)
-- `authority_report` / `walk_back`: defense-in-depth strip of any `body` keys; sealed/superseded/non-ground flags covered (case 33)
-- Docs: `close()` clears tickets and pending wild cites; `walk_back` vs `authority_report`; 0.4 non-goals listed
-
 ## [0.4.0] — 2026-07-31
 
 ### Hard cut to clinical harness surface + custody truth hardening
@@ -18,14 +10,15 @@ Breaking rewrite so the shipped package matches the README ops contract.
 
 - **Ops:** `write` / `write_pair` / `commit_turn`, `recall_similar` / `recall_side`, `open` / `around` / `step` / `read`, interim `move`, `root_to_ground`, gated `walk_back`, `authority_report`; framed JSONL `Scroll` (`dump_all` + oversized / complete-file slice refused)
 - **Preview ≠ read:** recall/around return bounded excerpts only; full body is `read`
-- **Walk tickets:** process-local opaque tickets on one long-lived `ForestStore`; forged/spent refused
+- **Walk tickets:** process-local opaque tickets on one long-lived `ForestStore`; forged/spent refused; cleared on `close()`
 - **Scroll ↔ pair:** `write_pair` requires `scroll_ptr`; `commit_turn` is the canonical heartbeat
 - **Access cites:** earned wild `read` pends `cites` onto the next pair
 - **Root:** only `root_to_ground` is public; `expected_body_hash` required; praise lint marked **non-normative**
-- **Audit:** `walk_back` (ground only) + `authority_report` (any entry, host debug, no bodies)
+- **Ceremony races:** `BEGIN IMMEDIATE` + in-lock `is_ground` re-check — concurrent second supersede/root refused (hostile case 32)
+- **Audit:** `walk_back` (ground only) + `authority_report` (any entry, host debug, no bodies; case 33)
 - **Porters:** [`PORTERS.md`](PORTERS.md) mechanical must-enforce list
 - **Scrub examples:** [`examples/scrubs.py`](examples/scrubs.py) (tool-trace / CoT markers); `default_scrub` stays minimal
-- **Docs:** ticket contract, concurrency notes, host hybrid retrieval (FTS + ranker → `recall_side`), schema evolution after 0.4
+- **Docs:** ticket contract, concurrency notes, host hybrid retrieval (FTS + ranker → `recall_side`), schema evolution after 0.4, explicit 0.4 non-goals
 - Soft `near` named; not shipped — use host hybrid pattern
 - **Removed:** MCP; `migrate_*`; public `ForestStore.root`; mint-canon adopt
 
