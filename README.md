@@ -1,5 +1,11 @@
 # Forest
 
+<img
+  width="300"
+  alt="The Forest — a bounded woods under glass"
+  src="https://github.com/user-attachments/assets/202dc43d-9dc3-48a5-b87d-a53868d8279a"
+/>
+
 **Custody-shaped memory for people (and models) building their own harnesses.**
 
 Forest is a SQLite DB layer + the physics to wire it — not a chat app, not an agent framework, not “better RAG in a box.” It sits *under* your harness.
