@@ -2,7 +2,7 @@
 
 Every public release follows the same checklist. Do not skip steps.
 
-Forest ships on **GitHub** (the constitution — `FOREST.md`, `schema.sql` — is the product) and on **PyPI** as [`forest-custody-memory`](https://pypi.org/project/forest-custody-memory/) (the reference wrapper).
+Forest ships on **GitHub** (ops contract in `README.md`; constitution in `FOREST.md` + `schema.sql`) and on **PyPI** as [`forest-custody-memory`](https://pypi.org/project/forest-custody-memory/) (the reference wrapper).
 
 ## Version numbers
 
@@ -12,7 +12,7 @@ The package version tracks the spec version. Keep these in sync before tagging:
 - `src/forest_memory/__init__.py` → `__version__`
 - `CHANGELOG.md` → new section with date
 
-Tag format: `v0.3.0` (must match the version with a `v` prefix).
+Tag format: `v0.4.0` (must match the version with a `v` prefix).
 
 ## One-time PyPI setup
 
@@ -37,9 +37,9 @@ git pull
 pip install -e ".[test]"
 pytest -q
 
-git tag -a v0.3.0 -m "v0.3.0"
+git tag -a v0.4.0 -m "v0.4.0"
 git push origin main
-git push origin v0.3.0
+git push origin v0.4.0
 ```
 
 Pushing the tag triggers [`.github/workflows/release.yml`](.github/workflows/release.yml), which:

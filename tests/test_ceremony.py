@@ -1,6 +1,8 @@
 import pytest
 
-from forest_memory import CeremonyRefusal, ForestStore, adopt_to_ground
+from conftest import linked_pair
+
+from forest_memory import CeremonyRefusal, ForestStore, hash_body, root_to_ground
 
 
 def store(tmp_path):
@@ -13,87 +15,97 @@ AUTHOR_LINE = "She walked through the autumn leaves."
 PARAPHRASE = "She strolled among fallen leaves in autumn."
 
 
-def make_draft(s, body=AUTHOR_LINE):
-    pair_id = s.insert_pair("draft the opening")
-    return s.insert_entry(
+def make_draft(s, tmp_path, body=AUTHOR_LINE):
+    pair_id = linked_pair(s, tmp_path, "draft the opening")
+    return s.write(
         body=body,
         bucket="draft",
         signature="model",
         origins=[(pair_id, "spoken_in")],
+        scrub=None,
     )
 
 
-def test_praise_is_not_adoption(tmp_path):
+def test_praise_is_not_root(tmp_path):
     s = store(tmp_path)
-    draft_id = make_draft(s)
-    with pytest.raises(CeremonyRefusal, match="enthusiasm is not adoption"):
-        adopt_to_ground(
+    draft_id = make_draft(s, tmp_path)
+    row = s.get(draft_id)
+    with pytest.raises(CeremonyRefusal, match="enthusiasm is not root"):
+        root_to_ground(
             s,
-            adopted_entry_id=draft_id,
-            body=AUTHOR_LINE,
+            entry_id=draft_id,
             adopting_words="oh, that's lovely",
             adopting_signature="author",
+            expected_body_hash=row["body_hash"],
         )
-    canon = s.conn.execute(
-        "SELECT COUNT(*) AS n FROM entries WHERE bucket = 'canon'"
-    ).fetchone()["n"]
-    assert canon == 0
+    assert list(s.conn.execute("SELECT id FROM current_ground")) == []
 
 
 def test_paraphrase_refused_as_author_prose(tmp_path):
     s = store(tmp_path)
-    draft_id = make_draft(s)
+    draft_id = make_draft(s, tmp_path)
+    row = s.get(draft_id)
     with pytest.raises(CeremonyRefusal, match="verbatim"):
-        adopt_to_ground(
+        root_to_ground(
             s,
-            adopted_entry_id=draft_id,
-            body=PARAPHRASE,
+            entry_id=draft_id,
             adopting_words="Yes — shelve this as my words.",
             adopting_signature="author",
-            source_verbatim=AUTHOR_LINE,
+            expected_body_hash=row["body_hash"],
+            source_verbatim=PARAPHRASE,
         )
 
 
-def test_explicit_adoption_promotes_to_ground(tmp_path):
+def test_explicit_root_promotes_in_place(tmp_path):
     s = store(tmp_path)
-    draft_id = make_draft(s)
-    adopt_to_ground(
+    draft_id = make_draft(s, tmp_path)
+    row = s.get(draft_id)
+    grounded = root_to_ground(
         s,
-        adopted_entry_id=draft_id,
-        body=AUTHOR_LINE,
-        adopting_words="Yes — shelve this as canon, dated today.",
+        entry_id=draft_id,
+        adopting_words="Yes — shelve this as ground, dated today.",
         adopting_signature="author",
+        expected_body_hash=row["body_hash"],
         source_verbatim=AUTHOR_LINE,
     )
-    ground = list(s.conn.execute("SELECT body FROM current_ground"))
-    assert [row["body"] for row in ground] == [AUTHOR_LINE]
+    assert grounded == draft_id
+    ground = list(s.conn.execute("SELECT id, body FROM current_ground"))
+    assert [(row["id"], row["body"]) for row in ground] == [(draft_id, AUTHOR_LINE)]
+    # No canon mint
+    assert s.conn.execute(
+        "SELECT COUNT(*) AS n FROM entries WHERE bucket = 'adoption_record'"
+    ).fetchone()["n"] == 1
+    assert s.conn.execute("SELECT COUNT(*) AS n FROM entries").fetchone()["n"] == 3  # pair+draft+record
 
 
-def test_hearsay_does_not_enter_current_ground_without_adoption(tmp_path):
+def test_hearsay_does_not_enter_current_ground_without_root(tmp_path):
     s = store(tmp_path)
-    pair_id = s.insert_pair("research the treaty year")
-    hearsay_id = s.insert_entry(
+    pair_id = linked_pair(s, tmp_path, "research the treaty year")
+    hearsay_id = s.write(
         body="The treaty was signed in 1842.",
-        forest="wild",
+        jurisdiction="wild",
         bucket="hearsay",
         signature="source:archive",
         origins=[(pair_id, "cites")],
+        scrub=None,
     )
-    synthesis_id = s.insert_entry(
+    synthesis_id = s.write(
         body="The treaty year is probably 1842.",
         bucket="synthesis",
         signature="model",
         origins=[(hearsay_id, "derived_from")],
+        scrub=None,
     )
-    assert s.search("1842")
+    assert s.recall_similar("1842", scope="both")
     ground_ids = {row["id"] for row in s.conn.execute("SELECT id FROM current_ground")}
     assert hearsay_id not in ground_ids
     assert synthesis_id not in ground_ids
-    with pytest.raises(CeremonyRefusal, match="enthusiasm is not adoption"):
-        adopt_to_ground(
+    row = s.get(synthesis_id)
+    with pytest.raises(CeremonyRefusal, match="enthusiasm is not root"):
+        root_to_ground(
             s,
-            adopted_entry_id=synthesis_id,
-            body="The treaty was signed in 1842.",
+            entry_id=synthesis_id,
             adopting_words="sounds right",
             adopting_signature="author",
+            expected_body_hash=row["body_hash"],
         )

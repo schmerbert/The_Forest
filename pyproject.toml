@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "forest-custody-memory"
-version = "0.3.1"
-description = "Append-only custody-first memory for AI systems — similarity can retrieve, similarity cannot promote."
+version = "0.4.0"
+description = "Custody-shaped SQLite memory for AI harnesses — labeled recall previews, walk, optional root."
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
@@ -30,7 +30,7 @@ test = ["pytest>=8.0"]
 dev = ["pytest>=8.0", "build"]
 
 [project.urls]
-Documentation = "https://github.com/schmerbert/The_Forest/blob/main/FOREST.md"
+Documentation = "https://github.com/schmerbert/The_Forest/blob/main/README.md"
 Repository = "https://github.com/schmerbert/The_Forest"
 Issues = "https://github.com/schmerbert/The_Forest/issues"
 Changelog = "https://github.com/schmerbert/The_Forest/blob/main/CHANGELOG.md"

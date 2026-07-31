@@ -2,7 +2,9 @@ import sqlite3
 
 import pytest
 
-from forest_memory import ForestError, ForestStore, adopt_to_ground
+from conftest import linked_pair
+
+from forest_memory import ForestError, ForestStore, root_to_ground
 
 
 def store(tmp_path):
@@ -14,7 +16,7 @@ def store(tmp_path):
 def test_unsigned_insert_refuses(tmp_path):
     s = store(tmp_path)
     with pytest.raises(ForestError):
-        s.insert_entry(
+        s.write(
             body="hello",
             bucket="note",
             signature="",
@@ -25,22 +27,23 @@ def test_unsigned_insert_refuses(tmp_path):
 def test_orphan_non_root_insert_refuses(tmp_path):
     s = store(tmp_path)
     with pytest.raises(ForestError):
-        s.insert_entry(body="orphan", bucket="note", signature="model")
+        s.write(body="orphan", bucket="note", signature="model")
 
 
-def test_session_pair_can_be_root(tmp_path):
+def test_pair_can_be_root(tmp_path):
     s = store(tmp_path)
-    pair_id = s.insert_pair("Her brother's name is Elias.")
+    pair_id = linked_pair(s, tmp_path, "Her brother's name is Elias.")
     assert pair_id > 0
 
 
 def test_invalid_bucket_refused_by_schema(tmp_path):
     s = store(tmp_path)
-    s.insert_pair("anchor")
+    linked_pair(s, tmp_path, "anchor")
     with pytest.raises(sqlite3.IntegrityError):
         s.conn.execute(
             """
-            INSERT INTO entries (forest, bucket, signature, body, body_hash, meta_json)
+            INSERT INTO entries
+              (jurisdiction, bucket, signature, body, body_hash, meta_json)
             VALUES ('home', 'typo_bucket', 'model', 'x', ?, '{}')
             """,
             ("a" * 64,),
@@ -49,22 +52,22 @@ def test_invalid_bucket_refused_by_schema(tmp_path):
 
 def test_body_rewrite_refuses(tmp_path):
     s = store(tmp_path)
-    pair_id = s.insert_pair("Her brother's name is Elias.")
+    pair_id = linked_pair(s, tmp_path, "Her brother's name is Elias.")
     with pytest.raises(sqlite3.IntegrityError, match="append-only"):
         s.conn.execute("UPDATE entries SET body = 'changed' WHERE id = ?", (pair_id,))
 
 
 def test_entry_delete_refuses(tmp_path):
     s = store(tmp_path)
-    pair_id = s.insert_pair("Her brother's name is Elias.")
+    pair_id = linked_pair(s, tmp_path, "Her brother's name is Elias.")
     with pytest.raises(sqlite3.IntegrityError, match="delete refused"):
         s.conn.execute("DELETE FROM entries WHERE id = ?", (pair_id,))
 
 
 def test_edge_delete_refuses(tmp_path):
     s = store(tmp_path)
-    pair_id = s.insert_pair("anchor")
-    note_id = s.insert_entry(
+    pair_id = linked_pair(s, tmp_path, "anchor")
+    note_id = s.write(
         body="note",
         bucket="note",
         signature="model",
@@ -80,34 +83,35 @@ def test_edge_delete_refuses(tmp_path):
 
 def test_sealed_entry_does_not_retrieve(tmp_path):
     s = store(tmp_path)
-    pair_id = s.insert_pair("Her brother's name is Elias.")
-    note_id = s.insert_entry(
+    pair_id = linked_pair(s, tmp_path, "Her brother's name is Elias.")
+    note_id = s.write(
         body="Elias betrayed her in winter.",
         bucket="inference",
         signature="model",
         origins=[(pair_id, "derived_from")],
     )
-    assert s.search("Elias")
+    assert s.recall_similar("Elias", scope="both")
     s.seal(entry_id=note_id, quote="Seal the betrayal note.")
-    bodies = [row["body"] for row in s.search("betrayed")]
+    bodies = [row.get("excerpt") or row.get("body") for row in s.recall_similar("betrayed", scope="both")]
     assert bodies == []
 
 
 def test_superseded_ground_not_current(tmp_path):
     s = store(tmp_path)
-    pair_id = s.insert_pair("Her brother's name is Elias.")
-    draft_id = s.insert_entry(
+    pair_id = linked_pair(s, tmp_path, "Her brother's name is Elias.")
+    draft_id = s.write(
         body="Elias betrayed her in spring.",
         bucket="draft",
         signature="model",
         origins=[(pair_id, "spoken_in")],
+        scrub=None,
     )
-    old_id = adopt_to_ground(
+    old_id = root_to_ground(
         s,
-        adopted_entry_id=draft_id,
-        body="Elias betrayed her in spring.",
-        adopting_words="Yes — shelve this as canon.",
+        entry_id=draft_id,
+        adopting_words="Yes — shelve this as ground.",
         adopting_signature="author",
+        expected_body_hash=s.get(draft_id)["body_hash"],
     )
     new_id = s.supersede(
         old_id=old_id,
@@ -121,11 +125,11 @@ def test_superseded_ground_not_current(tmp_path):
     ]
 
 
-def test_search_writes_retrieval_log(tmp_path):
+def test_recall_writes_retrieval_log(tmp_path):
     s = store(tmp_path)
-    s.insert_pair("Her brother's name is Elias.")
+    linked_pair(s, tmp_path, "Her brother's name is Elias.")
     before = s.conn.execute("SELECT COUNT(*) AS n FROM retrieval_log").fetchone()["n"]
-    s.search("brother")
+    s.recall_similar("brother")
     after = s.conn.execute("SELECT COUNT(*) AS n FROM retrieval_log").fetchone()["n"]
     assert after == before + 1
     row = s.conn.execute(
@@ -144,8 +148,7 @@ def test_store_context_manager_closes_connection(tmp_path):
     db_path = tmp_path / "forest.db"
     with ForestStore(db_path) as s:
         s.init_schema()
-        s.insert_pair("context manager closes cleanly")
-    # Re-open after close — would fail on Windows if the handle leaked.
+        linked_pair(s, tmp_path, "context manager closes cleanly")
     with ForestStore(db_path) as s:
         count = s.conn.execute("SELECT COUNT(*) AS n FROM entries").fetchone()["n"]
         assert count == 1

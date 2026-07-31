@@ -1,6 +1,8 @@
 from pathlib import Path
 
-from forest_memory import ForestStore, adopt_to_ground, check_file_drift
+from conftest import linked_pair
+
+from forest_memory import ForestStore, check_file_drift, root_to_ground
 
 
 def store(tmp_path):
@@ -15,19 +17,21 @@ def test_file_drift_detected_after_silent_edit(tmp_path):
     original = "The treaty was signed in spring."
     canon_file.write_text(original, encoding="utf-8")
 
-    pair_id = s.insert_pair("adoption ceremony")
-    draft_id = s.insert_entry(
+    pair_id = linked_pair(s, tmp_path, "root ceremony")
+    draft_id = s.write(
         body=original,
         bucket="draft",
         signature="model",
         origins=[(pair_id, "spoken_in")],
+        scrub=None,
     )
-    adopt_to_ground(
+    row = s.get(draft_id)
+    root_to_ground(
         s,
-        adopted_entry_id=draft_id,
-        body=original,
-        adopting_words="Yes — adopt this file as canon.",
+        entry_id=draft_id,
+        adopting_words="Yes — root this file as ground.",
         adopting_signature="author",
+        expected_body_hash=row["body_hash"],
         source_verbatim=original,
     )
     record_id = s.conn.execute(

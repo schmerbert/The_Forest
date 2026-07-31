@@ -20,9 +20,11 @@ In scope:
 
 Out of scope for this repository:
 
-- Application-layer ceremony design in downstream projects
+- Application-layer ceremony design beyond `root_to_ground`
+- The English **praise lint** on `root_to_ground` — non-normative convenience, **not a security boundary**
 - SQLite engine vulnerabilities (report upstream)
-- Deployments that call `ForestStore.adopt()` directly without a promotion gate
+- Hosts that forge `home`/`wild` stamps or skip `commit_turn` in favor of raw SQL inserts that bypass the wrapper
+- Cross-process walk ticket durability (tickets are process-local by contract)
 
 ## Response
 
@@ -42,6 +44,10 @@ The SQL triggers defend against buggy or confused application code. They do
 not defend against an adversary with write access to the database file —
 whoever can run `UPDATE` can also run `DROP TRIGGER`. Deployments needing
 protection against a hostile writer must put the file behind an
-authenticating service boundary. Speaker authentication for adoption quotes
-is the host application's responsibility; the store records the claimed
-signature verbatim.
+authenticating service boundary.
+
+Adoption quotes use **attributed** signatures — the `signature` field records
+who the caller claimed to be at the time of adoption. The store does not
+cryptographically verify the speaker; it records the attributed signature
+verbatim as evidence. Host applications are responsible for authenticating
+the actual identity of the adopting party before calling `root_to_ground`.

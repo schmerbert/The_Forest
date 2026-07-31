@@ -1,6 +1,6 @@
 # Example: writer canon
 
-How a fiction-writing tool might use Forest. The authority-holder is the author.
+How a fiction-writing harness might use Forest 0.4. The authority-holder is the author. Root is optional — only when a fact must stay true.
 
 Author says:
 
@@ -9,37 +9,38 @@ Author says:
 Stored as:
 
 ```yaml
-bucket: session_pair
+jurisdiction: home
+bucket: pair
 signature: conversation
+scroll_ptr: {path: session.scroll, offset: …}
 body: |
   USER: Her brother's name is Elias.
 ```
 
-Extracted ground — written by the adoption ceremony, one transaction:
+Prefer `commit_turn(store, scroll, …)` so the pair and scroll stay linked.
+
+Optional root — **in place**: the same entry body becomes ground. Adopting words are the authority *act*, not a second canon. Compare-and-root with `expected_body_hash` so you adopt the exact displayed text.
 
 ```yaml
-# the ground text
-bucket: canon
+# the authority act (adoption_record)
 signature: author
-origin: derived_from -> session_pair
-body: Her brother's name is Elias.
-
-# the authority act that makes it ground
-bucket: adoption_record
-signature: author            # who spoke the adopting words
-edge: adopts -> canon entry
-body: "Yes — that's canon: her brother is Elias."
+edge: adopts -> that entry
+body: "Yes — root this entry exactly as displayed."
+expected_body_hash: <sha256 of the entry body>
 ```
 
-The canon entry is ground *because* the adoption record points at it. There is no status column to set.
+That entry is ground *because* the adoption record points at it. There is no status column to set. Adopting words consent to the **exact displayed body** — they must not silently replace it.
 
 Assistant proposes:
 
 ```yaml
+jurisdiction: home
 bucket: inference
 signature: model
-origin: derived_from -> canon_entry
+origin: derived_from -> pair
 body: Maybe Elias betrayed her.
 ```
 
-That proposal can retrieve. It cannot become canon until the author adopts it through a recorded ceremony.
+If rooted, ground is still that inference sentence — not a paraphrase spoken only in the ceremony.
+
+`recall_similar("Elias")` returns **previews** that lead with `jurisdiction`. Similarity never promotes. Only `root_to_ground` does — and only when you need it. Full body is `read` after ticketed `open` → `around` → `step`.
