@@ -51,8 +51,9 @@ def hash_body(body: str) -> str:
 def default_scrub(text: str) -> str:
     """Minimum scrub: strip transport/harness scaffolding; do not rewrite claims.
 
-    README: scrub removes protocol noise. Transformative compression must be a
-    separately attributed synthesis, not silent scrub.
+    Pass a custom ``scrub=`` to ``write`` / ``write_pair`` / ``commit_turn``.
+    Host-oriented examples: ``examples/scrubs.py``. Transformative compression
+    or interpretation must be a separately attributed synthesis — never silent scrub.
     """
     text = text.strip()
     text = re.sub(r"</?(?:think|scratchpad|system)[^>]*>", "", text, flags=re.I)
@@ -942,7 +943,7 @@ class ForestStore:
             self._add_edge(record_id, entry_id, "unseals")
         return record_id
 
-    # -- walk_back -------------------------------------------------------------
+    # -- walk_back / authority_report ------------------------------------------
 
     def walk_back(self, entry_id: int, *, adopting_signature: str) -> dict:
         """Gated audit of current ground → adoption → origins → scroll_ptr.
@@ -955,9 +956,65 @@ class ForestStore:
             raise ForestError(
                 f"walk_back: entry {entry_id} is not current ground"
             )
+        return self._authority_packet(
+            entry_id, adopting_signature=adopting_signature.strip()
+        )
+
+    def authority_report(
+        self,
+        entry_id: int,
+        *,
+        adopting_signature: str,
+        excerpt_len: int = _AUDIT_EXCERPT,
+    ) -> dict:
+        """Host-facing custody status for any entry — previews only, never bodies.
+
+        For harness debugging and UI (logs, panels). Do **not** dump the whole
+        report into model context; use jurisdiction-first fields and open a
+        ticketed ``read`` only when a body is required.
+
+        Unlike ``walk_back``, works on non-ground entries (status will say so).
+        Requires an attributed ``adopting_signature`` (host authenticates).
+        """
+        if not adopting_signature or not adopting_signature.strip():
+            raise ForestError("authority_report: adopting_signature required")
         row = self.get(entry_id)
         if row is None:
-            raise ForestError(f"walk_back: unknown entry {entry_id}")
+            raise ForestError(f"authority_report: unknown entry {entry_id}")
+        bound = _require_excerpt_bound(excerpt_len)
+        packet = self._authority_packet(
+            entry_id,
+            adopting_signature=adopting_signature.strip(),
+            excerpt_len=bound,
+            require_ground=False,
+        )
+        packet["status"] = {
+            "is_ground": self.is_ground(entry_id),
+            "is_sealed": self.is_sealed(entry_id),
+            "is_superseded": self._is_superseded(entry_id),
+        }
+        packet["body_hash"] = row["body_hash"]
+        packet["note"] = (
+            "previews only — full body requires ticketed read(); "
+            "do not stuff this report into model context wholesale"
+        )
+        return packet
+
+    def _authority_packet(
+        self,
+        entry_id: int,
+        *,
+        adopting_signature: str,
+        excerpt_len: int = _AUDIT_EXCERPT,
+        require_ground: bool = True,
+    ) -> dict:
+        row = self.get(entry_id)
+        if row is None:
+            raise ForestError(f"authority: unknown entry {entry_id}")
+        if require_ground and not self.is_ground(entry_id):
+            raise ForestError(
+                f"walk_back: entry {entry_id} is not current ground"
+            )
         adoption = self.conn.execute(
             """
             SELECT r.* FROM edges a
@@ -981,20 +1038,20 @@ class ForestStore:
         )
         meta = json.loads(row["meta_json"] or "{}")
         return {
-            "entry": _row_to_scrap(row, excerpt_len=_AUDIT_EXCERPT),
-            "is_ground": True,
+            "entry": _row_to_scrap(row, excerpt_len=excerpt_len),
+            "is_ground": self.is_ground(entry_id),
             "adoption": (
-                _row_to_scrap(adoption, excerpt_len=_AUDIT_EXCERPT)
+                _row_to_scrap(adoption, excerpt_len=excerpt_len)
                 if adoption
                 else None
             ),
             "origins": [
                 {
-                    **_row_to_scrap(o, excerpt_len=_AUDIT_EXCERPT),
+                    **_row_to_scrap(o, excerpt_len=excerpt_len),
                     "edge_kind": o["edge_kind"],
                 }
                 for o in origins
             ],
             "scroll_ptr": meta.get("scroll_ptr"),
-            "audit_signature": adopting_signature.strip(),
+            "audit_signature": adopting_signature,
         }

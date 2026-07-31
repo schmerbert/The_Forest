@@ -6,8 +6,9 @@ Forest is a constitution first and a Python reference second. Changes should pre
 
 1. Read [`README.md`](README.md) — the ops contract (axes, walk, packets, loop)
 2. Read [`FOREST.md`](FOREST.md) — schema and ceremony depth
-3. Run the hostile suite: `pip install -e ".[test]" && pytest -q`
-4. If you change `schema.sql`, update `src/forest_memory/schema.sql` to match (the sync test enforces this)
+3. If porting or forking the wrapper, read [`PORTERS.md`](PORTERS.md)
+4. Run the hostile suite: `pip install -e ".[test]" && pytest -q`
+5. If you change `schema.sql`, update `src/forest_memory/schema.sql` to match (the sync test enforces this)
 
 ## What belongs here
 

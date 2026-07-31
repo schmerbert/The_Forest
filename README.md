@@ -59,9 +59,10 @@ with ForestStore("woods.db") as store:
     )
 ```
 
-**Canonical ops:** `write` / `write_pair` / `commit_turn` · `recall_similar` / `recall_side` · `open` · `around` · `step` · `read` · `root_to_ground` · `walk_back` · `Scroll.append`  
-**Interim:** `move` (prefer `step` + `around`). **Optional, not shipped:** soft `near` (embeddings).  
-**Promotion gate:** only `root_to_ground` is public. The store’s trail write is internal (`_root`).
+**Canonical ops:** `write` / `write_pair` / `commit_turn` · `recall_similar` / `recall_side` · `open` · `around` · `step` · `read` · `root_to_ground` · `walk_back` / `authority_report` · `Scroll.append`  
+**Interim:** `move` (prefer `step` + `around`). **Optional, not shipped:** soft `near` (embeddings) — see host hybrid below.  
+**Promotion gate:** only `root_to_ground` is public. The store’s trail write is internal (`_root`).  
+**Porters:** [`PORTERS.md`](PORTERS.md) — mechanical “wrapper must enforce” list (SQL alone is not enough).
 
 **0.4 is a hard cut.** Pre-0.4 databases are not opened — start fresh.
 
@@ -95,9 +96,9 @@ Jurisdiction is **not** a data type. It is the reason the entry is in the Forest
 - **Similarity never promotes.** Recall surfaces leads; only **root** creates ground.
 - **Ground is never silently edited or unrooted.** Corrections supersede through another recorded authority act.
 - **Scroll is append-only evidence**, not ordinary retrieval material. Complete-scroll reads are refused. Every pair carries a required `scroll_ptr`. Host owns secrets / retention / redaction.
-- **Write always goes through scrub.** Scrub strips transport/harness scaffolding; it must not silently rewrite the claim. Compression or interpretation is a separately attributed synthesis.
-- **Walk is ticketed.** `open` mints an opaque ticket; `around` discloses routes onto it; `step` spends it and mints a new one; `read` requires a valid ticket. Fabricated positions are refused.
-- **Wild access links the next pair.** An earned `read` of a wild entry pends a `cites` edge onto the next `write_pair` / `commit_turn` — it entered context whether or not the model “used” it.
+- **Write always goes through scrub.** Scrub strips transport/harness scaffolding; it must not silently rewrite the claim. Compression or interpretation is a separately attributed synthesis. Extension: pass `scrub=`; examples in [`examples/scrubs.py`](examples/scrubs.py).
+- **Walk is ticketed (process-local).** `open` mints an opaque ticket on **this** `ForestStore` instance; `around` discloses routes onto it; `step` spends it and mints a new one; `read` requires a valid ticket. Fabricated positions are refused. **Contract: one long-lived store process per walk session** — tickets are not durable across `close()` / new connections / other processes. Keep the store open for the harness session; do not serialize tickets to a DB column and expect another process to honor them.
+- **Wild access links the next pair.** An earned `read` of a wild entry pends a `cites` edge onto the next `write_pair` / `commit_turn` — it entered context whether or not the model “used” it. Pending cites clear on the next pair or when the store closes.
 
 ---
 
@@ -149,7 +150,17 @@ recall → bearings (bounded preview)
 
 **Pairs as territory:** consecutive pairs linked with `responds_to` (via `write_pair(..., previous_pair_id=…)`) are lawful lateral steps. **`next` = forward in time; `prev` = backward.**
 
-**Dolls / nests:** optional verbatim extracts (`parent[start:end] == child`) via interim `move(..., deeper=…)`. Soft `near` (open only from an embedding neighborhood) is named but not shipped in 0.4.
+**Dolls / nests:** optional verbatim extracts (`parent[start:end] == child`) via interim `move(..., deeper=…)`. Soft `near` (open only from an embedding neighborhood) is named but **not shipped** in 0.4.
+
+### Host hybrid retrieval (FTS + your ranker)
+
+Pure FTS is intentionally thin. A custody-safe pattern when you want embeddings:
+
+1. Run your vector / hybrid ranker **outside** Forest → get candidate entry ids.
+2. Pass them through `recall_side([{ "id": n }, …])` (or open only those ids) so every scrap is still a **jurisdiction-first bounded preview**.
+3. Only then `open` → `around` → `step` → `read`. Similarity still never promotes.
+
+Do not inject full bodies from your ranker into the model and call it “recall.”
 
 ---
 
@@ -196,8 +207,20 @@ Default `recall_similar` scope is **home**.
 | **`move`** | *Interim:* neighbor by edge, or deeper/shallower extract (ticketed). |
 | **`root_to_ground`** | Only public promotion gate → in-place authority act. |
 | **`walk_back`** | Gated audit of **current ground** (signature required): previews + `scroll_ptr`. |
+| **`authority_report`** | Host debug/UI custody status for **any** entry — previews + status flags + `body_hash`; never full bodies; do not dump into model context. |
 | **`supersede` / `seal` / `unseal`** | Ceremony writes. |
 | **`Scroll.append` / `tail` / `read_slice`** | Session evidence; `dump_all` and complete-file slices refused. |
+
+---
+
+## Ceremony & concurrency
+
+WAL mode is on; that is **not** a full multi-writer story.
+
+- Prefer **one writer** (one harness process) per database file.
+- Only the host-authenticated authority path should call `root_to_ground` / `supersede` / `seal` / `unseal`. Serialize ceremonies (mutex / queue) so two agents cannot race two supersedes of the same ground.
+- Multi-agent readers are fine for recall/walk; do not let every agent mint roots.
+- Tickets and pending wild cites are **per store instance** — not shared across processes.
 
 ---
 
@@ -205,9 +228,9 @@ Default `recall_similar` scope is **home**.
 
 **Does:** no silent path to authority; append-only record; correction of ground only through superseding authority acts; scroll kept out of ordinary retrieval dumps (complete reads refused); pairs linked to scroll; walk does not mint receipt entries; preview ≠ read; forged tickets refused; jurisdiction-first packets; axes stay separable; wild reads cite into the next pair.
 
-**Doesn’t:** ship your harness UI or agent loop; authenticate who rooted or who called `walk_back`; babysit bad `home`/`wild` stamps on write; own scroll secret policy; require embeddings (`near` is optional). Wire the doors once; [hostile tests](tests/HOSTILE_CASES.md) keep them from rotting.
+**Doesn’t:** ship your harness UI or agent loop; authenticate who rooted or who called audit ops; babysit bad `home`/`wild` stamps on write; own scroll secret policy; durable tickets across processes; ship embeddings (`near` is optional / host hybrid). Wire the doors once; [hostile tests](tests/HOSTILE_CASES.md) and [`PORTERS.md`](PORTERS.md) keep them from rotting.
 
-The praise lint (“enthusiasm is not root”) is an English convenience on `root_to_ground`, not SQL enforcement. The wall is the trail.
+**Praise lint is not a security boundary.** The English “enthusiasm is not root” check on `root_to_ground` is a **non-normative convenience**. Non-English roots pass by design. The custody wall is the append-only adoption trail + required `expected_body_hash`. Hosts may replace or drop the lint.
 
 ---
 
@@ -239,7 +262,18 @@ git clone https://github.com/schmerbert/The_Forest.git
 cp The_Forest/schema.sql your-project/woods/schema.sql
 ```
 
-**Do not ship `schema.sql` without an insert wrapper.** Use [`src/forest_memory/`](src/forest_memory/) as the reference. Align to this README.
+**Do not ship `schema.sql` without an insert wrapper.** Use [`src/forest_memory/`](src/forest_memory/) as the reference. Follow [`PORTERS.md`](PORTERS.md). Align to this README.
+
+### Schema evolution (after 0.4)
+
+`forest_meta.schema_version` is the gate. **0.4 is a hard cut** (no migrate from 0.3).
+
+Going forward:
+
+- **Additive, non-breaking** (same major mental model): new optional tables, new *non-ceremony* edge kinds / buckets via a documented migrate that widens CHECKs, new wrapper helpers — bump minor (`0.4.x` / `0.5.0`) and ship `migrate_0x_to_0y` when the on-disk shape changes.
+- **Hard cut again** when status would become mutable, jurisdiction/packet rules weaken, or old stores cannot be opened safely — refuse old `schema_version` like 0.4 did.
+
+Porters: never open a store whose `forest_meta.schema_version` you do not explicitly support.
 
 ---
 

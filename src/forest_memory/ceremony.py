@@ -1,7 +1,8 @@
 # ceremony — authority promotion gates (application layer on the constitution).
 #
 # Stores: nothing
-# Refuses: unsigned rooting words, praise-only quotes (English lint),
+# Refuses: unsigned rooting words, praise-only quotes (NON-NORMATIVE English lint —
+#          not a security boundary; hosts may bypass or replace),
 #          paraphrase posed as the rooted body when source_verbatim set,
 #          body_hash mismatch when expected_body_hash provided
 # Returns: rooted entry id via ForestStore._root (in-place)
@@ -13,6 +14,8 @@ import re
 
 from forest_memory.core import ForestStore
 
+# Non-normative convenience: English praise-only strings. Not a security boundary.
+# Non-English roots are intentionally unaffected. Hosts may replace or disable.
 _PRAISE_ONLY = re.compile(
     r"^(oh[,!]?\s*)?(that'?s\s+)?"
     r"(lovely|beautiful|great|wonderful|perfect|nice|"
@@ -44,6 +47,9 @@ def root_to_ground(
 
     The host authenticates the speaker; the store records the claimed
     signature verbatim as attributed evidence.
+
+    The English praise lint is a **non-normative convenience**, not a custody
+    wall. The wall is the append-only adoption trail + expected_body_hash.
     """
     if not adopting_signature or not adopting_signature.strip():
         raise CeremonyRefusal("root without a speaker signature refused")

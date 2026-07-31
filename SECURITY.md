@@ -20,9 +20,11 @@ In scope:
 
 Out of scope for this repository:
 
-- Application-layer ceremony design beyond `root_to_ground` (praise lint is English convenience)
+- Application-layer ceremony design beyond `root_to_ground`
+- The English **praise lint** on `root_to_ground` — non-normative convenience, **not a security boundary**
 - SQLite engine vulnerabilities (report upstream)
 - Hosts that forge `home`/`wild` stamps or skip `commit_turn` in favor of raw SQL inserts that bypass the wrapper
+- Cross-process walk ticket durability (tickets are process-local by contract)
 
 ## Response
 

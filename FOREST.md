@@ -161,6 +161,7 @@ Ceremony kinds (`adopts`, `supersedes`, `seals`, `unseals`) only via ceremonies.
 | `move` | *Interim:* neighbor / deeper / shallower (ticketed) |
 | `root_to_ground` | Only public in-place authority act |
 | `walk_back` | Current ground + signature → audit previews + scroll_ptr |
+| `authority_report` | Any entry → custody status previews (host debug; not model dump) |
 | `supersede` / `seal` / `unseal` | Ceremony writes |
 | `Scroll.append` / `tail` / `read_slice` | Session evidence; `dump_all` and complete-file slices refused |
 
@@ -169,6 +170,10 @@ Ceremony kinds (`adopts`, `supersedes`, `seals`, `unseals`) only via ceremonies.
 ## 7. Hard cut
 
 **0.4 does not open pre-0.4 stores.** No migrate path. Start a fresh database.
+
+### After 0.4 — versioning
+
+`forest_meta.schema_version` is authoritative. Additive on-disk changes ship with an explicit migrate and a version bump. Changes that weaken custody (mutable status, silent promotion, unlabeled packets) require another hard cut that refuses older versions. See README “Schema evolution.”
 
 ---
 
@@ -180,10 +185,10 @@ When ground also lives in a file, `check_file_drift` compares the file hash to t
 
 ## 9. Hostile tests
 
-See [`tests/HOSTILE_CASES.md`](tests/HOSTILE_CASES.md). Build the refusals first.
+See [`tests/HOSTILE_CASES.md`](tests/HOSTILE_CASES.md). Build the refusals first. Porters: [`PORTERS.md`](PORTERS.md).
 
 ---
 
 ## 10. Trust boundary
 
-Forest does not authenticate speakers. It guarantees there is no *silent* path to authority: every claim to ground is a recorded, attributed, immutable act. Public rooting goes only through `root_to_ground`.
+Forest does not authenticate speakers. It guarantees there is no *silent* path to authority: every claim to ground is a recorded, attributed, immutable act. Public rooting goes only through `root_to_ground`. The English praise lint is non-normative convenience — not part of this boundary.

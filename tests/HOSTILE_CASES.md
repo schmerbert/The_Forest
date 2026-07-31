@@ -44,6 +44,7 @@ Forest is useful only if it refuses the usual shortcuts. Each case names **who e
 | 22d | `step` without prior `around` disclosure | Constitutional (wrapper) | `test_trail.py` |
 | 22e | `walk_back` on non-ground / missing signature | Constitutional (wrapper) | `test_trail.py` |
 | 22f | Wild read cites into next pair | Constitutional (wrapper) | `test_trail.py` |
+| 22g | `authority_report` previews only; works on non-ground | Constitutional (wrapper) | `test_trail.py` |
 | 23 | Recall with FTS-unsafe query (special chars) | Constitutional (wrapper) | `test_adversarial.py` |
 | 23b | Unicode recall tokens (accented/CJK/Arabic/Cyrillic) | Constitutional (wrapper) | `test_recall.py` |
 | 24 | add_edge lost on crash (commit missing) | Constitutional (wrapper) | `test_adversarial.py` |
@@ -133,4 +134,4 @@ supersede only on ground; speaker recorded; body_hash CHECK; seal FTS shadow.
 
 ## 22. Walk receipts / tickets / scroll_ptr
 
-**Expected:** `open` / neighbor `step` / `read` do not insert entries; `around` returns previews only; forged tickets refused; `step` requires prior `around` disclosure; pairs without `scroll_ptr` refused; `walk_back` requires current ground + signature and returns previews only; wild `read` cites into the next pair.
+**Expected:** `open` / neighbor `step` / `read` do not insert entries; `around` returns previews only; forged tickets refused; `step` requires prior `around` disclosure; pairs without `scroll_ptr` refused; `walk_back` requires current ground + signature and returns previews only; wild `read` cites into the next pair; `authority_report` returns previews/status/`body_hash` without bodies.

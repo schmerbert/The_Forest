@@ -276,3 +276,46 @@ def test_open_then_read_current_bearing(tmp_path):
     p = linked_pair(s, tmp_path, "bearing text")
     trail = s.open(p)
     assert s.read(trail)["body"].startswith("USER:")
+
+
+def test_authority_report_previews_non_ground(tmp_path):
+    s = store(tmp_path)
+    p = linked_pair(s, tmp_path, "ask")
+    note = s.write(
+        body="A long claim that must not appear as body in the report " * 3,
+        bucket="note",
+        signature="model",
+        origins=[(p, "derived_from")],
+        scrub=None,
+    )
+    report = s.authority_report(note, adopting_signature="author")
+    assert report["status"]["is_ground"] is False
+    assert report["body_hash"] == s.get(note)["body_hash"]
+    assert "body" not in report["entry"]
+    assert "excerpt" in report["entry"]
+    assert "body" not in (report.get("adoption") or {})
+
+
+def test_authority_report_requires_signature(tmp_path):
+    s = store(tmp_path)
+    p = linked_pair(s, tmp_path, "x")
+    with pytest.raises(ForestError, match="adopting_signature"):
+        s.authority_report(p, adopting_signature="")
+
+
+def test_example_scrubs_strip_scaffolding_not_claim():
+    import importlib.util
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parents[1] / "examples" / "scrubs.py"
+    spec = importlib.util.spec_from_file_location("forest_example_scrubs", path)
+    mod = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(mod)
+
+    claim = "The treaty was signed in 1842."
+    assert mod.cot_marker_scrub(f"<think>secret</think>{claim}") == claim
+    messy = f"TOOL_RESULT: {{\"ok\": true}}\n{claim}\n"
+    out = mod.tool_trace_scrub(messy)
+    assert claim in out
+    assert "TOOL_RESULT" not in out
