@@ -56,6 +56,8 @@ Forest is useful only if it refuses the usual shortcuts. Each case names **who e
 | 29b | Multiple relations to same destination preserved | Constitutional (wrapper) | `test_adversarial.py` |
 | 30 | root postcondition / expected_body_hash mismatch | Ceremonial + wrapper | `test_adversarial.py` |
 | 31 | Empty/malformed schema vs fresh DB | Constitutional (wrapper) | `test_refuse_old.py` |
+| 32 | Concurrent supersede / root of same ground — second refused; no ambiguous `current_ground` | Constitutional (wrapper) | `test_concurrency.py` |
+| 33 | `authority_report` on sealed / superseded / non-ground — previews only + correct flags | Constitutional (wrapper) | `test_trail.py` |
 
 Cases 2, 8, 9, 12, 19, and 22b–22f are enforced by `ForestStore` in the reference wrapper, not by SQL alone.
 
@@ -135,3 +137,11 @@ supersede only on ground; speaker recorded; body_hash CHECK; seal FTS shadow.
 ## 22. Walk receipts / tickets / scroll_ptr
 
 **Expected:** `open` / neighbor `step` / `read` do not insert entries; `around` returns previews only; forged tickets refused; `step` requires prior `around` disclosure; pairs without `scroll_ptr` refused; `walk_back` requires current ground + signature and returns previews only; wild `read` cites into the next pair; `authority_report` returns previews/status/`body_hash` without bodies.
+
+## 32. Ceremony race on ground
+
+**Expected:** two concurrent `supersede` (or `root_to_ground`) paths on the same target cannot both succeed in a way that leaves ambiguous `current_ground`. The loser is refused. Reference assumes one writer; this is a regression wall against silent last-write-wins.
+
+## 33. authority_report flags
+
+**Expected:** sealed / superseded / non-ground entries still return preview-only packets with correct `status` flags; no `body` field.

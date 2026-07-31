@@ -290,10 +290,72 @@ def test_authority_report_previews_non_ground(tmp_path):
     )
     report = s.authority_report(note, adopting_signature="author")
     assert report["status"]["is_ground"] is False
+    assert report["status"]["is_sealed"] is False
+    assert report["status"]["is_superseded"] is False
     assert report["body_hash"] == s.get(note)["body_hash"]
     assert "body" not in report["entry"]
     assert "excerpt" in report["entry"]
     assert "body" not in (report.get("adoption") or {})
+
+
+def test_authority_report_sealed_and_superseded_flags(tmp_path):
+    """Hostile: sealed / superseded / non-ground still previews-only with correct flags."""
+    s = store(tmp_path)
+    p = linked_pair(s, tmp_path, "anchor")
+    note = s.write(
+        body="SECRET FULL BODY TEXT THAT MUST NOT LEAK IN REPORT",
+        bucket="note",
+        signature="model",
+        origins=[(p, "derived_from")],
+        scrub=None,
+    )
+    # non-ground
+    r0 = s.authority_report(note, adopting_signature="author")
+    assert r0["status"] == {
+        "is_ground": False,
+        "is_sealed": False,
+        "is_superseded": False,
+    }
+    assert "body" not in r0["entry"]
+    assert "excerpt" in r0["entry"]
+
+    def _no_body(obj):
+        if isinstance(obj, dict):
+            assert "body" not in obj
+            for v in obj.values():
+                _no_body(v)
+        elif isinstance(obj, list):
+            for v in obj:
+                _no_body(v)
+
+    _no_body(r0)
+
+    root_to_ground(
+        s,
+        entry_id=note,
+        adopting_words="Yes — root this note.",
+        adopting_signature="author",
+        expected_body_hash=s.get(note)["body_hash"],
+    )
+    wb = s.walk_back(note, adopting_signature="author")
+    assert "body" not in wb["entry"]
+    assert wb["is_ground"] is True
+
+    new_id = s.supersede(
+        old_id=note,
+        new_body="replacement ground",
+        adopting_words="Supersede the note.",
+        adopting_signature="author",
+    )
+    r_old = s.authority_report(note, adopting_signature="author")
+    assert r_old["status"]["is_superseded"] is True
+    assert r_old["status"]["is_ground"] is False
+    assert "body" not in r_old["entry"]
+
+    s.seal(entry_id=new_id, quote="Seal successor.")
+    r_sealed = s.authority_report(new_id, adopting_signature="author")
+    assert r_sealed["status"]["is_sealed"] is True
+    assert "body" not in r_sealed["entry"]
 
 
 def test_authority_report_requires_signature(tmp_path):

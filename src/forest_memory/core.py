@@ -17,9 +17,10 @@ import json
 import re
 import secrets
 import sqlite3
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Iterable, Sequence
+from typing import TYPE_CHECKING, Callable, Iterable, Iterator, Sequence
 
 from forest_memory.schema import load_schema_sql
 
@@ -162,6 +163,19 @@ def _row_to_scrap(row: sqlite3.Row, *, excerpt_len: int) -> dict:
     return scrap
 
 
+def _preview_only_packet(obj: object) -> object:
+    """Drop any full ``body`` fields from audit packets (defense in depth)."""
+    if isinstance(obj, dict):
+        return {
+            k: _preview_only_packet(v)
+            for k, v in obj.items()
+            if k != "body"
+        }
+    if isinstance(obj, list):
+        return [_preview_only_packet(x) for x in obj]
+    return obj
+
+
 def _require_jurisdiction(scrap: dict) -> dict:
     if "jurisdiction" not in scrap or scrap["jurisdiction"] not in ("home", "wild"):
         raise ForestError("unlabeled recall scrap refused (jurisdiction required)")
@@ -256,6 +270,23 @@ class ForestStore:
 
     def __exit__(self, exc_type, exc, tb) -> None:
         self.close()
+
+    @contextmanager
+    def _immediate_write(self) -> Iterator[None]:
+        """BEGIN IMMEDIATE … COMMIT/ROLLBACK — write lock before ceremony checks.
+
+        Reference assumes one writer. This prevents two connections from both
+        passing ``is_ground`` and leaving ambiguous ``current_ground``.
+        """
+        if self.conn.in_transaction:
+            self.conn.commit()
+        self.conn.execute("BEGIN IMMEDIATE")
+        try:
+            yield
+            self.conn.commit()
+        except Exception:
+            self.conn.rollback()
+            raise
 
     def init_schema(self, schema_path: str | Path | None = None) -> None:
         if schema_path is not None:
@@ -823,31 +854,32 @@ class ForestStore:
         """Internal trail write. Public root path is ``root_to_ground`` only."""
         if not expected_body_hash or not str(expected_body_hash).strip():
             raise ForestError("root: expected_body_hash required")
-        row = self.get(entry_id)
-        if row is None:
-            raise ForestError(f"root: unknown entry {entry_id}")
-        if row["bucket"] in CEREMONY_BUCKETS:
-            raise ForestError("root: cannot root a ceremony record")
-        if self.is_sealed(entry_id):
-            raise ForestError(
-                f"root: entry {entry_id} is sealed; cannot root a sealed entry"
-            )
-        if self._is_superseded(entry_id):
-            raise ForestError(
-                f"root: entry {entry_id} is superseded; cannot root a superseded entry"
-            )
-        if self.is_ground(entry_id):
-            raise ForestError(f"entry {entry_id} is already current ground")
         if not quote or not quote.strip():
             raise ForestError("root without adopting words refused")
         if not adopting_signature or not adopting_signature.strip():
             raise ForestError("root without a speaker signature refused")
-        if row["body_hash"] != expected_body_hash:
-            raise ForestError(
-                f"root: body_hash mismatch for entry {entry_id} "
-                f"(expected {expected_body_hash!r}, stored {row['body_hash']!r})"
-            )
-        with self.conn:
+        with self._immediate_write():
+            row = self.get(entry_id)
+            if row is None:
+                raise ForestError(f"root: unknown entry {entry_id}")
+            if row["bucket"] in CEREMONY_BUCKETS:
+                raise ForestError("root: cannot root a ceremony record")
+            if self.is_sealed(entry_id):
+                raise ForestError(
+                    f"root: entry {entry_id} is sealed; cannot root a sealed entry"
+                )
+            if self._is_superseded(entry_id):
+                raise ForestError(
+                    f"root: entry {entry_id} is superseded; "
+                    "cannot root a superseded entry"
+                )
+            if self.is_ground(entry_id):
+                raise ForestError(f"entry {entry_id} is already current ground")
+            if row["body_hash"] != expected_body_hash:
+                raise ForestError(
+                    f"root: body_hash mismatch for entry {entry_id} "
+                    f"(expected {expected_body_hash!r}, stored {row['body_hash']!r})"
+                )
             record_id = self._insert_row(
                 body=quote.strip(),
                 jurisdiction="home",
@@ -877,26 +909,29 @@ class ForestStore:
         """Replace current ground with a new entry + adoption trail.
 
         new_body is scrubbed by default. The new entry cannot use a ceremony bucket.
+        Re-checks ``is_ground`` under ``BEGIN IMMEDIATE`` so a concurrent
+        supersede of the same ground cannot both succeed (second is refused).
         """
-        if not self.is_ground(old_id):
-            raise ForestError(
-                f"entry {old_id} is not current ground; only ground can be superseded"
-            )
         if not adopting_words or not adopting_words.strip():
             raise ForestError("supersession without adopting words refused")
         if scrub is not None:
             new_body = scrub(new_body)
-        old = self.get(old_id)
-        assert old is not None
-        new_bucket = bucket or (
-            old["bucket"] if old["bucket"] not in CEREMONY_BUCKETS else "note"
-        )
-        if new_bucket in CEREMONY_BUCKETS:
-            raise ForestError(
-                f"supersede: new body cannot use ceremony bucket {new_bucket!r}; "
-                "use a regular content bucket"
+        with self._immediate_write():
+            if not self.is_ground(old_id):
+                raise ForestError(
+                    f"entry {old_id} is not current ground; "
+                    "only ground can be superseded"
+                )
+            old = self.get(old_id)
+            assert old is not None
+            new_bucket = bucket or (
+                old["bucket"] if old["bucket"] not in CEREMONY_BUCKETS else "note"
             )
-        with self.conn:
+            if new_bucket in CEREMONY_BUCKETS:
+                raise ForestError(
+                    f"supersede: new body cannot use ceremony bucket "
+                    f"{new_bucket!r}; use a regular content bucket"
+                )
             new_id = self._insert_row(
                 body=new_body,
                 jurisdiction=old["jurisdiction"],
@@ -913,6 +948,14 @@ class ForestStore:
                 ceremony=True,
             )
             self._add_edge(record_id, new_id, "adopts")
+            if self.is_ground(old_id):
+                raise ForestError(
+                    "supersede postcondition failed: old entry still current ground"
+                )
+            if not self.is_ground(new_id):
+                raise ForestError(
+                    "supersede postcondition failed: new entry is not current ground"
+                )
         return new_id
 
     def seal(self, *, entry_id: int, quote: str, signature: str = "author") -> int:
@@ -998,7 +1041,7 @@ class ForestStore:
             "previews only — full body requires ticketed read(); "
             "do not stuff this report into model context wholesale"
         )
-        return packet
+        return _preview_only_packet(packet)  # type: ignore[return-value]
 
     def _authority_packet(
         self,
@@ -1037,7 +1080,7 @@ class ForestStore:
             )
         )
         meta = json.loads(row["meta_json"] or "{}")
-        return {
+        packet = {
             "entry": _row_to_scrap(row, excerpt_len=excerpt_len),
             "is_ground": self.is_ground(entry_id),
             "adoption": (
@@ -1055,3 +1098,4 @@ class ForestStore:
             "scroll_ptr": meta.get("scroll_ptr"),
             "audit_signature": adopting_signature,
         }
+        return _preview_only_packet(packet)  # type: ignore[return-value]

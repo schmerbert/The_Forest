@@ -219,8 +219,18 @@ WAL mode is on; that is **not** a full multi-writer story.
 
 - Prefer **one writer** (one harness process) per database file.
 - Only the host-authenticated authority path should call `root_to_ground` / `supersede` / `seal` / `unseal`. Serialize ceremonies (mutex / queue) so two agents cannot race two supersedes of the same ground.
+- The reference runs `root` / `supersede` under **`BEGIN IMMEDIATE`** and re-checks `is_ground` inside that lock — a concurrent second ceremony on the same target is **refused**, not silent last-write-wins. This is a regression wall, not a distributed lock service.
 - Multi-agent readers are fine for recall/walk; do not let every agent mint roots.
-- Tickets and pending wild cites are **per store instance** — not shared across processes.
+- Tickets and `_pending_wild_access` are **per store instance** and are **cleared on `close()` / a new connection** — not shared across processes.
+
+### `walk_back` vs `authority_report`
+
+| Helper | Use when |
+|--------|----------|
+| **`walk_back`** | Auditing **current ground** only (refuses non-ground). Authority trail + `scroll_ptr`. |
+| **`authority_report`** | Debugging **any** entry (ground, sealed, superseded, or plain). Adds `status` flags + `body_hash`. |
+
+Both return **previews only** (excerpt / hash / status) — never full `body`. Do not dump either packet into model context; ticketed `read` when a body is required.
 
 ---
 
@@ -230,7 +240,7 @@ WAL mode is on; that is **not** a full multi-writer story.
 
 **Doesn’t:** ship your harness UI or agent loop; authenticate who rooted or who called audit ops; babysit bad `home`/`wild` stamps on write; own scroll secret policy; durable tickets across processes; ship embeddings (`near` is optional / host hybrid). Wire the doors once; [hostile tests](tests/HOSTILE_CASES.md) and [`PORTERS.md`](PORTERS.md) keep them from rotting.
 
-**Praise lint is not a security boundary.** The English “enthusiasm is not root” check on `root_to_ground` is a **non-normative convenience**. Non-English roots pass by design. The custody wall is the append-only adoption trail + required `expected_body_hash`. Hosts may replace or drop the lint.
+**0.4 non-goals (do not expect these in this release):** durable/cross-process tickets; shipped `near` / embedding index; multi-section partial file drift; a runtime mutex helper beyond IMMEDIATE txn + docs; any soft promotion path.
 
 ---
 

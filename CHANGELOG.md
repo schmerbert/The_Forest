@@ -2,6 +2,14 @@
 
 All notable changes to the Forest constitution and reference wrapper.
 
+## [Unreleased]
+
+### 0.4 close-out
+
+- Ceremony `root` / `supersede` use ``BEGIN IMMEDIATE`` and re-check ground inside the lock — concurrent second path refused (hostile case 32)
+- `authority_report` / `walk_back`: defense-in-depth strip of any `body` keys; sealed/superseded/non-ground flags covered (case 33)
+- Docs: `close()` clears tickets and pending wild cites; `walk_back` vs `authority_report`; 0.4 non-goals listed
+
 ## [0.4.0] — 2026-07-31
 
 ### Hard cut to clinical harness surface + custody truth hardening
